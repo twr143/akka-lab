@@ -65,7 +65,7 @@ import Kote._
   onTransition {
   case State.Sleeping -> State.Awake =>
   log.info("reaction Meow!")
-  case State.VeryHungry -> State.Sleeping | State.Awake-> State.Sleeping=>
+  case State.VeryHungry -> State.Sleeping | State.Awake-> State.Sleeping  =>
   log.info("reaction Zzzzz...")
   }
 
