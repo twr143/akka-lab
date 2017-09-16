@@ -60,9 +60,6 @@ object Boot extends App{
   bindingFuture
     .flatMap(_.unbind())
     .onComplete(_ ⇒ system.terminate())
-//start 6
-  //b7
-  //ori 6
-  //b7
+//start 7
 }
 
