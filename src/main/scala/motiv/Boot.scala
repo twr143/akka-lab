@@ -61,15 +61,5 @@ object Boot extends App{
     .flatMap(_.unbind())
     .onComplete(_ ⇒ system.terminate())
 //start 5
-  //s41
-  //s42
-  //s43
-  //s44
-  //s45
-  //s46
-  //s47
-  //s48
-  //b51
-  //b52
 }
 
