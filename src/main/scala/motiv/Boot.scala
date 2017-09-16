@@ -61,6 +61,5 @@ object Boot extends App{
     .flatMap(_.unbind())
     .onComplete(_ ⇒ system.terminate())
 //start 5
-  //ori1
 }
 
