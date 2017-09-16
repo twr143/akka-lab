@@ -62,5 +62,6 @@ object Boot extends App{
     .onComplete(_ ⇒ system.terminate())
 //start again 2
   //b2c1
+  //b2c2
 }
 
