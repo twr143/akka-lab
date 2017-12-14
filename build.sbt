@@ -14,7 +14,8 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" % "akka-http_2.12" % "10.0.9",
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "com.github.dnvriend" %% "akka-persistence-inmemory" % "2.5.1.1",
-  "org.scalatest" %% "scalatest" % "3.0.1" % "test"
+  "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+  "com.typesafe.akka" %% "akka-stream" % "2.5.3"
 )
 
 val circeVersion = "0.8.0"
