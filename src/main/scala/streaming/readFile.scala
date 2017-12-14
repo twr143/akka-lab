@@ -35,12 +35,19 @@ object readFile {
       .map(_.utf8String)
     val future: Future[Done] = lineByLineSource.filter(_.nonEmpty).filter(_.contains(","))
       .map(extractId)
-      .scan((false, "", ""))((l, r) => (l._2 != r._1, r._1, r._2))
-      .drop(1)
+      .scan((false, "", ""))((p, n) => {
+//        println((p, n))
+        (p._2 != n._1, n._1, n._2)
+      })
+    .drop(1)
       .splitWhen(_._1)
-      .fold(("", Seq[String]()))((l, r) => (r._2, l._2 ++ Seq(r._3)))
-      .concatSubstreams
-      .runForeach(println)
+      .fold(("", Seq[String]()))((l, r) =>
+      {
+        println((l, r))
+        (r._2, l._2 ++ Seq(r._3))
+      }
+      )
+      .concatSubstreams.runForeach((a:(String, Seq[String]))=>{})
     val reply = Await.result(future, 10 seconds)
     println(s"Received $reply")
     Await.ready(system.terminate(), 10 seconds)
