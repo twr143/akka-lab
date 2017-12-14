@@ -2,13 +2,11 @@ package streaming
 
 import java.io.File
 import java.nio.file.{Files, Paths}
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Framing}
 import akka.util.ByteString
-
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
@@ -16,14 +14,15 @@ import scala.util.control.NonFatal
 /*
 created by Ilya Volynin at 14.12.17
 */
-object readFile{
-
+object readFile {
   implicit val system = ActorSystem("system")
   implicit val materializer = ActorMaterializer()
-  def extractId(s: String) = {
+
+  def extractId(s: String): (String, String) = {
     val a = s.split(",")
-    a(0) -> a(1)
+    (a(0), a(1))
   }
+
   def main(args: Array[String]) {
     val p = Paths.get("tmp/example.csv")
     if (Files.notExists(p)) {
@@ -31,7 +30,6 @@ object readFile{
       system.terminate()
       return
     }
-
     val lineByLineSource = FileIO.fromPath(p)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 1024))
       .map(_.utf8String)
@@ -47,5 +45,4 @@ object readFile{
     println(s"Received $reply")
     Await.ready(system.terminate(), 10 seconds)
   }
-
 }
