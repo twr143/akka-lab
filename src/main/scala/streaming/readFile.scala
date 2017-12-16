@@ -31,22 +31,23 @@ object readFile {
       return
     }
     val lineByLineSource = FileIO.fromPath(p)
-      .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 1024))
+      .via(Framing.delimiter(ByteString("\r\n"), maximumFrameLength = 1024))
       .map(_.utf8String)
     val future: Future[Done] = lineByLineSource.filter(_.nonEmpty).filter(_.contains(","))
       .map(extractId)
       .scan((false, "", ""))((p, n) => {
 //        println((p, n))
         (p._2 != n._1, n._1, n._2)
-      })
+      })//.map{a=>println(a); a}
     .drop(1)
-      .splitWhen(_._1)
+      .splitWhen(_._1)        //.map{a=>println(a); a}
       .fold(("", Seq[String]()))((l, r) =>
       {
-        println((l, r))
+        println(l)
+        println(r)
         (r._2, l._2 ++ Seq(r._3))
       }
-      )
+      )   //.map{a=>println(a); a}
       .concatSubstreams.runForeach((a:(String, Seq[String]))=>{})
     val reply = Await.result(future, 10 seconds)
     println(s"Received $reply")
