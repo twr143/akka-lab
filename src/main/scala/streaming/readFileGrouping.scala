@@ -2,13 +2,12 @@ package streaming
 
 import java.io.File
 import java.nio.file.{Files, Paths}
-
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Framing}
 import akka.util.ByteString
-
+import scala.collection.immutable.TreeMap
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.util.control.NonFatal
@@ -33,16 +32,18 @@ object readFileGrouping {
       return
     }
     val lineByLineSource = FileIO.fromPath(p)
-      .via(Framing.delimiter(ByteString("\r\n"), maximumFrameLength = 1024))
+      .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 1024))
       .map(_.utf8String)
     val future: Future[Done] = lineByLineSource.filter(_.nonEmpty).filter(_.contains(","))
-      .map(extractId).fold(Map.empty[String,Int])((l :Map[String,Int], r : (String,String)) =>
-            {
-//              println(l)
-//              println(r)
-              l + (r._1 -> (1 + l.getOrElse(r._1,0)))
-            }
-            ).runForeach(println)
+      .map(extractId).fold(Map.empty[String, Int])((l: Map[String, Int], r: (String, String)) => {
+      //              println(l)
+      //              println(r)
+      l + (r._1 -> (1 + l.getOrElse(r._1, 0)))
+    }
+    ).runForeach {l: Map[String, Int] =>
+      val result = l.toSeq.sortWith(_._2 > _._2)
+      println(result)
+    }
     val reply = Await.result(future, 10 seconds)
     println(s"Received $reply")
     Await.ready(system.terminate(), 10 seconds)
