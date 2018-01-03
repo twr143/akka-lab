@@ -41,7 +41,7 @@ object readFileGrouping {
       l + (r._1 -> (1 + l.getOrElse(r._1, 0)))
     }
     ).runForeach {l: Map[String, Int] =>
-      val result = l.toSeq.sortWith(_._2 > _._2)
+      val result = l.toList.sortWith(_._2 > _._2)
       println(result)
     }
     val reply = Await.result(future, 10 seconds)

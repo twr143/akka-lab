@@ -27,6 +27,7 @@ object Stream1 {
       .map(spin)
       .map(spin)
       .runWith(Sink.ignore)
+
   def spinSimpleAsync(): Future[Done] =
     Source(1 to 1000)
       .map(spin)
