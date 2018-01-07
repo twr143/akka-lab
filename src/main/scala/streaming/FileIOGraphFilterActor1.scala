@@ -1,14 +1,13 @@
 package streaming
 import java.io.File
-
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.dispatch.forkjoin.ThreadLocalRandom
 import akka.stream.impl.fusing.Filter
 import akka.stream.{ActorMaterializer, ClosedShape}
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.util.ByteString
-import streaming.Consumer.{Ack, Complete, Init, Process}
-
+import streaming.Consumer._
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 /*
 created by Ilya Volynin at 18.12.17
@@ -18,7 +17,7 @@ object FileIOGraphFilterActor1 extends App {
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
   val consumer = system.actorOf(Props[Consumer], "total")
-  val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(100))
+  val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(100), errorHandler)
   val source = Source.fromIterator { () => Iterator.continually(ThreadLocalRandom.current().nextInt(500000)) }
   val fileSink = FileIO.toFile(new File("random.txt"))
   val slowSink = Flow[Int].map(i => {
@@ -54,6 +53,11 @@ object Consumer {
   case object Ack
   case class Complete(id: Long)
   case class Process(value: Long, lastMessage: Long)
+  def errorHandler(ex: Throwable): Unit = {
+    ex match {
+      case NonFatal(e) => println("exception happened: " + e)
+    }
+  }
 }
 class Consumer extends Actor {
   override def receive: Receive = {
@@ -62,7 +66,8 @@ class Consumer extends Actor {
       sender ! Ack
     case Process(value, _) =>
       println(s"v=$value")
-      sender ! Ack
+      if (value > 450000) sender ! errorHandler(new IllegalStateException("too large value"))
+        sender ! Ack
     case Complete(id) =>
       println(s"completed $id")
       sender ! Ack
