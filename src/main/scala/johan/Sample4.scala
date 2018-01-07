@@ -27,7 +27,7 @@ object Sample4 extends App {
   implicit val ec = system.dispatcher
   object Database {
     def asyncBulkInsert(entries: Seq[String])(implicit system: ActorSystem): Future[Seq[String]] = {
-      // simulate that writing to a database takes ~30 millis
+      // dispatcher for returning future might be custom
       println(s"saved ${entries.size} messages")
       after(30.millis, system.scheduler, ec, Future(entries)(ec))
     }
