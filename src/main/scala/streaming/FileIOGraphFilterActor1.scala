@@ -6,7 +6,7 @@ import akka.stream.impl.fusing.Filter
 import akka.stream.{ActorMaterializer, ClosedShape}
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
 import akka.util.ByteString
-import streaming.Consumer._
+import streaming.Consumer2._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 /*
@@ -16,7 +16,7 @@ object FileIOGraphFilterActor1 extends App {
   implicit val system = ActorSystem()
   implicit val materializer = ActorMaterializer()
   import system.dispatcher
-  val consumer = system.actorOf(Props[Consumer], "total")
+  val consumer = system.actorOf(Props[Consumer2], "total2")
   val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(100), errorHandler)
   val source = Source.fromIterator { () => Iterator.continually(ThreadLocalRandom.current().nextInt(500000)) }
   val fileSink = FileIO.toFile(new File("random.txt"))
@@ -48,7 +48,7 @@ object FileIOGraphFilterActor1 extends App {
       system.terminate()
   }
 }
-object Consumer {
+object Consumer2 {
   case object Init
   case object Ack
   case class Complete(id: Long)
@@ -59,7 +59,7 @@ object Consumer {
     }
   }
 }
-class Consumer extends Actor {
+class Consumer2 extends Actor {
   override def receive: Receive = {
     case _: Init.type =>
       println(s"init")
