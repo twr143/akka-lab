@@ -38,7 +38,7 @@ object DeathWatchTest extends App {
 
   // lookup kenny, then kill it
 //  kenny ! "exc"
-  kenny ! PoisonPill
+  kenny ! Status.Failure(new Exception("exc happened!"))
   Thread.sleep(1000)
   println("calling system.shutdown")
   system.terminate()
