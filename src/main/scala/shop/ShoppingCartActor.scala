@@ -1,7 +1,7 @@
 package shop
 
 import akka.actor.Actor.Receive
-import akka.actor.{ActorLogging, Props}
+import akka.actor.{ActorLogging, Props, Status}
 import akka.persistence.{PersistentActor, RecoveryCompleted}
 import shop.ShoppingCartActor._
 
@@ -9,12 +9,8 @@ class ShoppingCartActor(id: String) extends PersistentActor with ActorLogging {
   private var state: Seq[ShoppingItem] = Seq.empty
   override def persistenceId: String = id
 
-  override def receiveCommand: Receive = {
-    case AddItemCommand(item) =>
-      persist(ItemAdded(item)) { evt =>
-        state = applyEvent(evt)
-        sender() ! AddItemResponse(item)
-      }
+
+  def initialized: Receive = {
     case UpdateItemCommand(item) =>
       persist(ItemUpdated(item)) { evt =>
         state = applyEvent(evt)
@@ -29,9 +25,28 @@ class ShoppingCartActor(id: String) extends PersistentActor with ActorLogging {
       sender() ! GetItemsResponse(state)
   }
 
+  def uninitialized: Receive = {
+    case AddItemCommand(item) =>
+      persist(ItemAdded(item)) { evt =>
+        state = applyEvent(evt)
+        context.become(initialized)
+        unstashAll()
+        sender() ! AddItemResponse(item)
+      }
+    case any =>
+      if (!recoveryFinished) stash()
+      else sender() ! Status.Failure(ItemNotFound)
+
+  }
+  override def receiveCommand = uninitialized
+
   override def receiveRecover: Receive = {
+    case ItemAdded(item) =>
+      state = item +: state
+      context.become(initialized)
     case evt: ShoppingCartEvent => state = applyEvent(evt)
-    case RecoveryCompleted => log.info("Recovery completed!")
+    case RecoveryCompleted =>
+      log.info("Recovery completed!")
   }
 
   private def applyEvent(shoppingCartEvent: ShoppingCartEvent): Seq[ShoppingItem] = shoppingCartEvent match {
@@ -63,4 +78,6 @@ object ShoppingCartActor {
   case class ItemRemoved(shoppingItemId: String) extends ShoppingCartEvent
 
   case class ShoppingItem(id:String,desc:String, price:Double, quantity:Int)
+
+  case object ItemNotFound extends Exception
 }

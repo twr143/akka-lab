@@ -1,4 +1,4 @@
-import akka.actor.{ActorSystem, PoisonPill}
+import akka.actor.{ActorSystem, PoisonPill, Status}
 import akka.testkit.{ImplicitSender, TestKit}
 import shop.ShoppingCartActor._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
@@ -71,5 +71,13 @@ class ShoppingCartActorSpec
 
       expectMsg(GetItemsResponse(Seq.empty))
     }
+
+    "return ItemNotFound if no items were added prior request" in {
+          val shoppingCartId = "sc-000004"
+          val shoppingCartActor = system.actorOf(ShoppingCartActor.props(shoppingCartId))
+
+          shoppingCartActor ! GetItemsRequest
+          expectMsg(Status.Failure(ItemNotFound))
+        }
   }
 }
