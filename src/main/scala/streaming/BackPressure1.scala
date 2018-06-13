@@ -29,6 +29,7 @@ object BackPressure1 extends App {
         system.terminate()
     })
   val toCons = Flow[Int].map(i => {
+    println(s"sender v=$i :${Thread.currentThread().getId}")
     if (i < 490000) Process(i, 0) else Complete(i)
   })
   val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(1000), errorHandler)
