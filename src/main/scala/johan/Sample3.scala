@@ -8,9 +8,10 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ContentTypes.`text/plain(UTF-8)`
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpResponse}
 import akka.http.scaladsl.server.Directives._
-import akka.stream.{ActorMaterializer, ThrottleMode}
+import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
+
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 /**
@@ -20,12 +21,14 @@ object Sample3 extends App {
   implicit val system = ActorSystem()
   import system.dispatcher
   implicit val mat = ActorMaterializer()
+  var counter = 0
   val numbers2 =
     Source.unfold(0L) { (n) =>
-      val next = n + 1
       Thread.sleep(10)
-      Some((next+10, next+2))
-    }.map(n => ByteString(n + (if (n % 1000 == 0) "\n" else " "))).throttle(5, 1.second, 200, ThrottleMode.Shaping)
+      val result = (n + 11, n + 3)
+      println(s"next pair: $result \t # ${counter+=1;counter}")
+      Some(result)
+    }.map(n => ByteString(n + (if (n % 1000 == 0) "\n" else " "))).buffer(1000,overflowStrategy = OverflowStrategy.backpressure).throttle(1, 1.second, 200, ThrottleMode.Shaping)
   //val numbers = Source.tick(1.second, 1.second, 0).map(n => n + 1).map(n => ByteString(n + (if (n % 1000 == 0) "\n" else " ")))
   val route =
     path("numbers") {
