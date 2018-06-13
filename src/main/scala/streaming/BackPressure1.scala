@@ -34,10 +34,12 @@ object BackPressure1 extends App {
   val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(1000), errorHandler)
   val sinkConsumer2 = Sink.actorRefWithAck(consumer2, Init, Ack, Complete(1000), errorHandler)
   val lastSnk = Sink.last[Any]
-  val ((killSwitch, last), NotUsed) = source.via(toCons).viaMat(KillSwitches.single)(Keep.right).alsoToMat(lastSnk)(Keep.both)
+  val lastSnk2 = Sink.last[Any]
+  val (((killSwitch, last), last2), NotUsed) = source.via(toCons).viaMat(KillSwitches.single)(Keep.right)
+    .alsoToMat(lastSnk)(Keep.both).alsoToMat(lastSnk2)(Keep.both)
     .toMat(sinkConsumer)(Keep.both).run()
   //          toCons/*.alsoTo(sinkConsumer2)*/.viaMat(KillSwitches.single)(Keep.right).toMat(sinkConsumer)(Keep.right).runWith(source)
-  Thread.sleep(80)
+  Thread.sleep(90)
   killSwitch.shutdown()
   last.onComplete {
     case Success(Process(l,_)) => println(s"the last one is $l")
