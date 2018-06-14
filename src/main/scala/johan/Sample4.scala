@@ -42,7 +42,7 @@ object Sample4 extends App {
       .mapAsync(5)(Database.asyncBulkInsert)
       .map(written => TextMessage("wrote up to: " + written.last))
   val route =
-    path("meas") {
+    path("ws") {
       get {
         handleWebSocketMessages(measurementsFlow)
       }
