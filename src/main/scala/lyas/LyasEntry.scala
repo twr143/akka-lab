@@ -17,8 +17,9 @@
 package lyas
 
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{ Flow, Keep, Sink, Source }
-import akka.stream.{ ActorMaterializer, ThrottleMode }
+import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
+import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
+
 import scala.concurrent.duration.DurationInt
 
 /**
@@ -28,7 +29,6 @@ object LyasEntry {
 
   def main(args: Array[String]): Unit = {
     println("-- Main started --")
-
     implicit val system = ActorSystem()
     implicit val mat    = ActorMaterializer()
     import system.dispatcher
