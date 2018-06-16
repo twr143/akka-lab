@@ -2,13 +2,14 @@
  * Copyright (C) 2009-2017 Lightbend Inc. <http://www.lightbend.com>
  */
 package johan
+import akka.NotUsed
 import akka.pattern.Patterns.after
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.{ActorMaterializer, SourceShape}
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
 import scala.collection.immutable.Seq
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -36,7 +37,7 @@ object Sample4 extends App {
     Flow[Message].flatMapConcat { message =>
       // handles both strict and streamed ws messages by folding
       // the later into a single string (in memory)
-      message.asTextMessage.getStreamedText.fold("")(_ + _)
+      message.asTextMessage.asInstanceOf[TextMessage].textStream.fold("")(_ + _)
     }
       .groupedWithin(1000, 5.second)
       .mapAsync(5)(Database.asyncBulkInsert)

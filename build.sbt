@@ -4,7 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.12.2"
 
-lazy val akkaVersion = "2.5.3"
+lazy val akkaVersion = "2.5.12"
 
 resolvers += Resolver.jcenterRepo
 
@@ -28,7 +28,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser"
 ).map(_ % circeVersion)
 
-libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.5.3"
+libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
 libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-core" % "1.1.0",
   "io.kamon" %% "kamon-logback" % "1.0.0",
