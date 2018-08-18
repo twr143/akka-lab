@@ -26,6 +26,9 @@ class EqRequestControllerSpec extends TestKit(ActorSystem("EqRequestControllerSp
       eRCActor ! Request(1, "1")
       eRCActor ! Request(1, "2")
       eRCActor ! Request(2, "1")
+      eRCActor ! Request(3, "1")
+      eRCActor ! Request(4, "1")
+      eRCActor ! Request(2, "2")
       eRCActor ! Request(1, "3")
       eRCActor ! Request(1, "4")
       Thread.sleep(4000)
@@ -34,7 +37,10 @@ class EqRequestControllerSpec extends TestKit(ActorSystem("EqRequestControllerSp
       expectMsgPF() {
         case Processed(1) => //println("processed 1")
         case Processed(2) => //println("processed 2")
+        case Processed(3) => //println("processed 3")
+        case Processed(4) => //println("processed 4")
         case Stashed(1) => //println("stashed 1")
+        case Stashed(2) => //println("stashed 2")
       }
       //      }
     }

@@ -39,11 +39,11 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
         } yield result).to(sender())
       } else {
         stash()
-        log.info("event {} stashed {}", (value, mark), Thread.currentThread().getId)
+        log.info("event {} stashed, thread {}", (value, mark), Thread.currentThread().getId)
         sender() ! Stashed(value)
       }
     case RemoveFromProcessingRequestsSet(value) =>
-      log.info("event {} removed from the set {}", value, Thread.currentThread().getId)
+      log.info("event {} removed from the set, thread {}", value, Thread.currentThread().getId)
       processingRequestsSet -= value
     case UnstashTask =>
       log.info("unstash task works")
@@ -51,10 +51,10 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
   }
 
   def processingRoutine(value: Int, mark: String): Future[Processed] = Future {
-    log.info("event {} started to be processed {}", (value, mark), Thread.currentThread().getId)
+    log.info("event {} started to be processed, thread {}", (value, mark), Thread.currentThread().getId)
     Thread.sleep(100)
     //    after(500.millis, context.system.scheduler)(Future{
-    log.info("event {} has been processed {}", (value, mark), Thread.currentThread().getId)
+    log.info("event {} has been processed, thread {}", (value, mark), Thread.currentThread().getId)
     Processed(value)
   }
 }
