@@ -10,10 +10,10 @@ import scala.concurrent.duration._
   * Created by Ilya Volynin on 17.08.2018 at 21:27.
   *
   * The idea of an actor is that equal events should be processed sequentialy,
-  * while different ones may be processed in paralel
+  * while different ones may be processed in parallel
   *
   * Thus we use set of currently processed objects (processingRequestsSet) to prevent duplicate objects
-  * from cuncurrent processing with existing ones
+  * from concurrent processing with existing ones
   *
   * In case the duplicate object comes into the process, we stash it, waiting while the processing of its sibling is done
   * Unstash is being caled periodically
@@ -34,7 +34,7 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
         pipe(for {
           result <- processingRoutine(value, mark)
           _ <- Future {
-            self ! RemoveFromPreocessingRequestsSet(value)
+            self ! RemoveFromProcessingRequestsSet(value)
           }
         } yield result).to(sender())
       } else {
@@ -42,7 +42,7 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
         log.info("event {} stashed {}", (value, mark), Thread.currentThread().getId)
         sender() ! Stashed(value)
       }
-    case RemoveFromPreocessingRequestsSet(value) =>
+    case RemoveFromProcessingRequestsSet(value) =>
       log.info("event {} removed from the set {}", value, Thread.currentThread().getId)
       processingRequestsSet -= value
     case UnstashTask =>
@@ -61,7 +61,7 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
 object EqRequestController {
   def props(system: ActorSystem): Props = Props(new EqRequestController(system))
   case class Request(value: Int, mark: String)
-  case class RemoveFromPreocessingRequestsSet(value: Int)
+  case class RemoveFromProcessingRequestsSet(value: Int)
   case object UnstashTask
   case class Processed(value: Int)
   case class Stashed(value: Int)
