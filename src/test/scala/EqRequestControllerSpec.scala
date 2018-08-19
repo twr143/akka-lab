@@ -21,19 +21,21 @@ class EqRequestControllerSpec extends TestKit(ActorSystem("EqRequestControllerSp
   "EqRequestController" can {
     val eRCActor = system.actorOf(EqRequestController.props(system = system))
     "accept requests, stash or process them after" in {
-      //      eventually {
-      val probe = TestProbe()
       eRCActor ! Request(1, "1")
       eRCActor ! Request(1, "2")
       eRCActor ! Request(2, "1")
       eRCActor ! Request(3, "1")
+      eRCActor ! Request(3, "2")
+      eRCActor ! Request(3, "3")
+      eRCActor ! Request(3, "4")
       eRCActor ! Request(4, "1")
       eRCActor ! Request(2, "2")
       eRCActor ! Request(1, "3")
       eRCActor ! Request(1, "4")
-      Thread.sleep(4000)
-      //      expectMsgAllOf(1.second, Processed(1))
-      //      expectMsgAllOf(1.second, Processed(1), Processed(2), Stashed(1))
+      var done = true
+      awaitCond(p = {
+        done = !done; done
+      }, 4.seconds, interval = 4.seconds)
       expectMsgPF() {
         case Processed(1) => //println("processed 1")
         case Processed(2) => //println("processed 2")
@@ -41,8 +43,8 @@ class EqRequestControllerSpec extends TestKit(ActorSystem("EqRequestControllerSp
         case Processed(4) => //println("processed 4")
         case Stashed(1) => //println("stashed 1")
         case Stashed(2) => //println("stashed 2")
+        case Stashed(3) => //println("stashed 2")
       }
-      //      }
     }
   }
 }

@@ -52,8 +52,7 @@ class EqRequestController(system: ActorSystem) extends Actor with ActorLogging w
 
   def processingRoutine(value: Int, mark: String): Future[Processed] = Future {
     log.info("event {} started to be processed, thread {}", (value, mark), Thread.currentThread().getId)
-    Thread.sleep(100)
-    //    after(500.millis, context.system.scheduler)(Future{
+    Thread.sleep(100.millis.toMillis)
     log.info("event {} has been processed, thread {}", (value, mark), Thread.currentThread().getId)
     Processed(value)
   }
