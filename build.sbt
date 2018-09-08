@@ -17,7 +17,8 @@ libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "org.scalatest" %% "scalatest" % "3.2.0-SNAP9",
-  "joda-time" % "joda-time" % "2.7"
+  "joda-time" % "joda-time" % "2.7",
+  "com.typesafe.akka" %% "akka-stream-kafka" % "0.22"
 )
 
 val circeVersion = "0.9.3"
