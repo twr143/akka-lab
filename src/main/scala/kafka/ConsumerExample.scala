@@ -101,12 +101,12 @@ object AtMostOnceExample extends ConsumerExample {
     // #atMostOnce
     val control =
       Consumer
-        .atMostOnceSource(consumerSettings, Subscriptions.assignmentWithOffset(new TopicPartition("testT5", /* partition = */ 0), 0))
+        .atMostOnceSource(consumerSettings, Subscriptions.topics("testT6"))
         .mapAsync(1)(record => business(record.key, record.value()))
         .to(Sink.ignore)
         .run()
     // #atMostOnce
-    Thread.sleep(3000)
+    Thread.sleep(2000)
     terminateWhenDone(control.shutdown())
   }
 
@@ -227,22 +227,27 @@ object ConsumerToProducerWithBatchCommitsExample extends ConsumerExample {
   def main(args: Array[String]): Unit = {
     // #consumerToProducerFlowBatch
     val control = Consumer
-      .committableSource(consumerSettings, Subscriptions.topics("topic1"))
+      .committableSource(consumerSettings, Subscriptions.topics("testT7"))
       .map(
-        msg =>
+        msg => {
+         // println(s"msg.recod.value = ${msg.record.value}")
           ProducerMessage.Message[String, String, ConsumerMessage.CommittableOffset](
-            new ProducerRecord("topic2", msg.record.value),
+            new ProducerRecord("testT8", msg.record.value),
             msg.committableOffset
           )
+        }
       )
+
       .via(Producer.flexiFlow(producerSettings))
+
       .map(_.passThrough)
-      .batch(max = 20, CommittableOffsetBatch.apply)(_.updated(_))
+      .batch(max = 5, CommittableOffsetBatch.apply)(_.updated(_))
       .mapAsync(3)(_.commitScaladsl())
-      .toMat(Sink.ignore)(Keep.both)
+      .toMat(Sink.foreach(println(_)))(Keep.both)
       .mapMaterializedValue(DrainingControl.apply)
       .run()
     // #consumerToProducerFlowBatch
+    Thread.sleep(3000)
     terminateWhenDone(control.drainAndShutdown())
   }
 }
