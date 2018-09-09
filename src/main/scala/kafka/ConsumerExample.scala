@@ -276,17 +276,20 @@ object ConsumerWithPerPartitionBackpressure extends ConsumerExample {
   def main(args: Array[String]): Unit = {
     // #committablePartitionedSource
     val control = Consumer
-      .committablePartitionedSource(consumerSettings, Subscriptions.topics("topic1"))
+      .committablePartitionedSource(consumerSettings, Subscriptions.topics("testT6"))
       .flatMapMerge(maxPartitions, _._2)
-      .via(business)
+      .via(business2)
       .map(_.committableOffset)
-      .batch(max = 100, CommittableOffsetBatch.apply)(_.updated(_))
+      .batch(max = 5, CommittableOffsetBatch.apply)(_.updated(_))
       .mapAsync(3)(_.commitScaladsl())
       .to(Sink.ignore)
       .run()
     // #committablePartitionedSource
+    Thread.sleep(3000)
     terminateWhenDone(control.shutdown())
   }
+  def business2 = Flow[CommittableMessage[String,String]].map{t => println(s"value=${t.record.value()}");t}
+
 }
 // Flow per partition
 object ConsumerWithIndependentFlowsPerPartition extends ConsumerExample {

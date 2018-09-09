@@ -117,12 +117,12 @@ object ProducerFlowExample extends ProducerExample {
   def main(args: Array[String]): Unit = {
     // format:off
     // #flow
-    val done = Source(11 to 20)
+    val done = Source(71 to 90)
       .map { number =>
-        val partition = 0
+        val partition = 1
         val value = number.toString
         ProducerMessage.Message(
-          new ProducerRecord("testT5", partition, "key", value),
+          new ProducerRecord("testT6", partition, "key", value),
           number
         )
       }
