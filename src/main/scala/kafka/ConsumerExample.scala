@@ -364,6 +364,8 @@ object ConsumerWithOtherSource extends ConsumerExample {
 object ExternallyControlledKafkaConsumer extends ConsumerExample {
   def main(args: Array[String]): Unit = {
     // #consumerActor
+
+      // несколько вручную назначенных топик-партиций используют единый consumer
     //Consumer is represented by actor
     val consumer: ActorRef = system.actorOf(KafkaConsumerActor.props(consumerSettings))
     //Manually assign topic partition to it
