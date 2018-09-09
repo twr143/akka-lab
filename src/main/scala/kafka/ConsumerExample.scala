@@ -3,9 +3,8 @@ import akka.kafka.ConsumerMessage.{CommittableMessage, CommittableOffsetBatch}
 import akka.kafka._
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.kafka.scaladsl.{Consumer, Producer}
-import akka.stream.scaladsl.{Flow, Keep, RestartSource, Sink, Source}
-import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.{Flow, GraphDSL, Keep, RestartSource, Sink, Source}
+import akka.stream.{ActorMaterializer, DelayOverflowStrategy}
 import akka.{Done, NotUsed}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
 import org.apache.kafka.clients.producer.ProducerRecord
@@ -104,7 +103,7 @@ object AtMostOnceExample extends ConsumerExample {
       Consumer
         .atMostOnceSource(consumerSettings, Subscriptions.assignmentWithOffset(new TopicPartition("testT5", /* partition = */ 0), 0))
         .mapAsync(1)(record => business(record.key, record.value()))
-        .to(Sink.foreach(it => println(s"Done with $it")))
+        .to(Sink.ignore)
         .run()
     // #atMostOnce
     Thread.sleep(3000)
@@ -112,7 +111,10 @@ object AtMostOnceExample extends ConsumerExample {
   }
 
   // #atMostOnce
-  def business(key: String, value: String): Future[Done] = ???
+  def business(key: String, value: String): Future[Done] = {
+    println(s"DB.save: $value")
+    Future.successful(Done)
+  }
 
   // #atMostOnce
 }
@@ -127,7 +129,7 @@ object AtLeastOnceExample extends ConsumerExample {
           business(msg.record.key, msg.record.value).map(_ => msg.committableOffset)
         }
         .mapAsync(5)(offset => offset.commitScaladsl())
-        .toMat(Sink.foreach(it => println(s"Done with $it")))(Keep.both)
+        .toMat(Sink.ignore)(Keep.both)
         .mapMaterializedValue(DrainingControl.apply)
         .run()
     // #atLeastOnce
@@ -141,6 +143,7 @@ object AtLeastOnceExample extends ConsumerExample {
     println(s"k $key v $value")
     Future.successful(Done)
   }
+
   // #atLeastOnce
   // format: on
 }
@@ -150,13 +153,13 @@ object AtLeastOnceWithBatchCommitExample extends ConsumerExample {
     // #atLeastOnceBatch
     val control =
       Consumer
-        .committableSource(consumerSettings, Subscriptions.topics("topic1"))
+        .committableSource(consumerSettings, Subscriptions.assignmentWithOffset(new TopicPartition("testT5", /* partition = */ 0), 0))
         .mapAsync(1) { msg =>
-          business(msg.record.key, msg.record.value)
+          business(msg.record.key, msg.record.value).recover { case e: Exception => println(s"exception ${e.getMessage}");Done }
             .map(_ => msg.committableOffset)
         }
         .batch(
-          max = 20,
+          max = 10,
           CommittableOffsetBatch.apply
         )(_.updated(_))
         .mapAsync(3)(_.commitScaladsl())
@@ -164,10 +167,14 @@ object AtLeastOnceWithBatchCommitExample extends ConsumerExample {
         .mapMaterializedValue(DrainingControl.apply)
         .run()
     // #atLeastOnceBatch
+    Thread.sleep(3000)
     terminateWhenDone(control.drainAndShutdown())
   }
 
-  def business(key: String, value: String): Future[Done] = ???
+  def business(key: String, value: String): Future[Done] = {
+    println(s"k $key v $value")
+    if ("7".equals(value)) Future.failed(new Exception("7 is the unlucky number")) else Future.successful(Done)
+  }
 }
 // Connect a Consumer to Producer
 object ConsumerToProducerSinkExample extends ConsumerExample {
