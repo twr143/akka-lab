@@ -30,7 +30,7 @@ object readFile2 extends App {
   // Runs the line counter over the test files, returns a Future, which contains the number of lines, which we then print out to the console when it completes
   val resFuture = testFiles.runWith(lineCounter)
   val reply = Await.result(resFuture, 10 seconds)
-  println(s"Received $reply")
+  println(s"# lines in all files: $reply")
   Await.ready(system.terminate(), 10 seconds)
 
 }

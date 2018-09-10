@@ -4,10 +4,9 @@ import akka.actor.{Actor, ActorSystem, Props, Scheduler}
 import akka.dispatch.forkjoin.ThreadLocalRandom
 import akka.pattern.Patterns.after
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
-import streaming.Consumer2._
 import akka.pattern.Patterns._
 import akka.stream.{ActorMaterializer, KillSwitches}
-import streaming.Consumer.Ack
+import streaming.Consumer._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -30,10 +29,10 @@ object BackPressure1 extends App {
     })
   val toCons = Flow[Int].map(i => {
     println(s"sender v=$i :${Thread.currentThread().getId}")
-    if (i < 490000) Process(i, 0) else Complete(i)
+    if (i < 490000) Process(i, 0) else Complete
   })
-  val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete(1000), errorHandler)
-  val sinkConsumer2 = Sink.actorRefWithAck(consumer2, Init, Ack, Complete(1000), errorHandler)
+  val sinkConsumer = Sink.actorRefWithAck(consumer, Init, Ack, Complete, errorHandler)
+  val sinkConsumer2 = Sink.actorRefWithAck(consumer2, Init, Ack, Complete, errorHandler)
   val lastSnk = Sink.last[Any]
   val lastSnk2 = Sink.last[Any]
   val (((killSwitch, last), last2), NotUsed) = source.via(toCons).viaMat(KillSwitches.single)(Keep.right)
@@ -51,7 +50,7 @@ object BackPressure1 extends App {
 object Consumer {
   case object Init
   case object Ack
-  case class Complete(id: Long)
+  case object Complete
   case class Process(value: Long, lastMessage: Long)
   def errorHandler(ex: Throwable): Unit = {
     ex match {
@@ -69,8 +68,8 @@ class Consumer(implicit ec: ExecutionContext, scheduler: Scheduler, system: Acto
       println(s"v=$value :${Thread.currentThread().getId}")
       if (value > 450000) sender ! errorHandler(new IllegalStateException("too large value"))
       sender ! Ack
-    case Complete(id) =>
-      println(s"completed $id")
+    case Complete =>
+      println(s"completed.")
       system.terminate()
       sender ! Ack
   }
