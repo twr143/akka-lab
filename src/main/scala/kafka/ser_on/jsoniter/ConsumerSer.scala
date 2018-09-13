@@ -1,4 +1,5 @@
 package kafka.ser_on.jsoniter
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.CommittableOffsetBatch
@@ -14,10 +15,17 @@ import org.apache.kafka.common.serialization.StringDeserializer
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
 /**
   * Created by Ilya Volynin on 13.09.2018 at 14:59.
   */
 trait ConsumerSer {
+
+  val root = LoggerFactory.getLogger("org.apache.kafka.clients.consumer").asInstanceOf[ch.qos.logback.classic.Logger]
+  root.setLevel(Level.WARN)
+
   val system = ActorSystem("example")
   implicit val ec = system.dispatcher
   implicit val m = ActorMaterializer.create(system)
@@ -60,7 +68,7 @@ object ConsumerSerWithBatchCommitExample extends ConsumerSer {
         .mapMaterializedValue(DrainingControl.apply)
         .run()
     // #atLeastOnceBatch
-    Thread.sleep(3000)
+    Thread.sleep(30000)
     terminateWhenDone(control.drainAndShutdown())
   }
 

@@ -4,17 +4,19 @@ package kafka.ser_on.jsoniter
   * Created by Ilya Volynin on 13.09.2018 at 15:05.
   */
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
 
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ProducerSettings
 import akka.kafka.scaladsl.Producer
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.Source
 import com.ovoenergy.kafka.serialization.circe._
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import kafka.ser_on.jsoniter.Model._
@@ -55,7 +57,8 @@ object JupiterProducerExample extends ProducerSer {
 
   def main(args: Array[String]): Unit = {
     // #plainSinkWithProducer
-    val done = Source(1 to 10).map(e => SerializationBeanJsoniter(e.toString, e, OffsetDateTime.now()))
+    val done = Source.fromIterator(() => Iterator.range(1500,10000)).throttle(10,FiniteDuration(1,TimeUnit.SECONDS),10,ThrottleMode.shaping).
+      map(e => SerializationBeanJsoniter(e.toString, e, OffsetDateTime.now()))
       .map(value => new ProducerRecord[String, SerializationBeanJsoniter]("testT10", value))
       .runWith(Producer.plainSink(producerSettings))
     // #plainSinkWithProducer
