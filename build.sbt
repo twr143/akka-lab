@@ -7,6 +7,7 @@ scalaVersion := "2.12.2"
 lazy val akkaVersion = "2.5.12"
 
 resolvers += Resolver.jcenterRepo
+resolvers += Resolver.bintrayRepo("ovotech", "maven")
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
@@ -39,6 +40,21 @@ libraryDependencies ++= Seq(
 
 libraryDependencies +=compilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
+)
+
+libraryDependencies ++= {
+  val kafkaSerializationV = "0.3.11" // see the Maven badge above for the latest version
+  Seq(
+    "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV,
+    "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
+    "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
+//    "com.ovoenergy" %% "kafka-serialization-jsoniter-scala" % kafkaSerializationV // To provide Jsoniter Scala JSON support
+   )
+}
+
+libraryDependencies ++= Seq(
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % "0.29.22" % Compile,
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.29.22" % Provided // required only in compile-time
 )
 
 mainClass in (Compile, run) := Some("motiv.Boot")
