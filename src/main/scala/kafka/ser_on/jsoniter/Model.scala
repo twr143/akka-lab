@@ -13,6 +13,7 @@ object Model {
   sealed trait SerializationBeanJsoniterBase
   case class SerializationBeanJsoniter(first: String, second: Int, third: java.time.OffsetDateTime) extends SerializationBeanJsoniterBase
   case class SerializationBeanJsoniter2(first: String, second: Int, third: java.time.OffsetDateTime, fourth: Int) extends SerializationBeanJsoniterBase
+  case class SerializationBeanJsoniter3(first: Int) extends SerializationBeanJsoniterBase
   implicit val codec: JsonValueCodec[SerializationBeanJsoniterBase] = JsonCodecMaker.make[SerializationBeanJsoniterBase](CodecMakerConfig())
 
 }

@@ -1,4 +1,4 @@
-package kafka.ser_on.jsoniter.singleType
+package kafka.ser_on.jsoniter.multiMessage
 
 import akka.Done
 import akka.actor.ActorSystem
