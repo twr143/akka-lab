@@ -1,5 +1,6 @@
 package kafka.ser_on.jsoniter
-import com.github.plokhotnyuk.jsoniter_scala.core.{JsonCodec,JsonReader, JsonWriter, _}
+
+import com.github.plokhotnyuk.jsoniter_scala.core._
 import com.ovoenergy.kafka.serialization.core._
 import org.apache.kafka.common.serialization.{Deserializer => KafkaDeserializer, Serializer => KafkaSerializer}
 
