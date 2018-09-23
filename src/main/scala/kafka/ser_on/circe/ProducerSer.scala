@@ -50,7 +50,7 @@ object PlainSinkWithProducerExample extends ProducerSer {
   def main(args: Array[String]): Unit = {
     // #plainSinkWithProducer
     val done = Source(41 to 50).map(e => SerializationBean(e.toString, e, new java.util.Date()))
-      .map(value => new ProducerRecord[String, SerializationBean]("testT9", value))
+      .map(value => new ProducerRecord[String, SerializationBean]("testT1", value))
       .runWith(Producer.plainSink(producerSettings))
     // #plainSinkWithProducer
     Thread.sleep(3000)

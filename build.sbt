@@ -48,7 +48,6 @@ libraryDependencies ++= {
     "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV,
     "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
     "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
-//    "com.ovoenergy" %% "kafka-serialization-jsoniter-scala" % kafkaSerializationV // To provide Jsoniter Scala JSON support
    )
 }
 
