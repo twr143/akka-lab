@@ -13,15 +13,19 @@ object groupByEntry1 {
     implicit val as = ActorSystem()
     implicit val mat = ActorMaterializer()
     val f = Source
-      .tick(0 second, 50 millis, "").take(200).
+      .tick(0 second, 50 millis, "").take(100).
       map {
         _ => if (Random.nextBoolean) (1, s"A") else (2, s"B")
       }
       .groupBy(10, _._1)
       // how to aggregate grouped elements here for two seconds?
-      .scan(Seq[String]()) { (x, y) => x ++ Seq(y._2) }.filter(_.length % 20 == 0)//.takeWhile(_.length < 100)
+      .fold(Seq[String]()) { (x, y) => x ++ Seq(y._2) } //.filter(_.length % 20 == 0)//.takeWhile(_.length < 100)
       .mergeSubstreams
-      .runForeach(println)
+      .runForeach {
+        seq =>
+          println(s"length = ${seq.length}")
+          println(seq)
+      }
     try Await.result(f, 60.minutes)
     finally as.terminate()
   }
