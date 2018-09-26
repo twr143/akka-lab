@@ -3,29 +3,31 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Sink, Source}
-
+import util.StreamWrapperApp
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.util.{Failure, Random, Success}
-object BufferedOrNot {
+object BufferedOrNot extends StreamWrapperApp {
   val random = new Random()
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
 
-  def main(args: Array[String]): Unit = {
-      runAndComplete(sequential,"sequential")
-      runAndComplete(sequentialWithBuffer,"sequentialWithBuffer")
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+    Future.sequence(
+      List(runAndComplete(sequential, "sequential"),
+        runAndComplete(sequentialWithBuffer, "sequentialWithBuffer")))
   }
-  def runAndComplete(f: () => Future[Done], name: String, toComplete: Boolean= false): Unit = {
+
+  def runAndComplete(f: () => Future[Done], name: String, toComplete: Boolean = false)
+                    (implicit as: ActorSystem): Future[Done] = {
     val start = System.currentTimeMillis()
-    f().onComplete {
+    val res = f()
+    res.onComplete {
       case Success(x) =>
         println(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
-        if (toComplete) system.terminate()
       case Failure(e) =>
         println(s"Failure: ${e.getMessage}")
-        system.terminate()
+        as.terminate()
     }
+    res
   }
 
   def uniformRandomSpin(value: Int): Future[Int] = Future {
@@ -35,7 +37,7 @@ object BufferedOrNot {
     value
   }
 
-  def sequentialWithBuffer(): Future[Done] = {
+  def sequentialWithBuffer()(implicit mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsync(1)(uniformRandomSpin)
       .buffer(16, OverflowStrategy.backpressure)
@@ -47,7 +49,8 @@ object BufferedOrNot {
       .buffer(16, OverflowStrategy.backpressure)
       .runWith(Sink.ignore)
   }
-  def sequential(): Future[Done] = {
+
+  def sequential()(implicit mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsync(1)(uniformRandomSpin)
       .mapAsync(1)(uniformRandomSpin)
@@ -55,6 +58,4 @@ object BufferedOrNot {
       .mapAsync(1)(uniformRandomSpin)
       .runWith(Sink.ignore)
   }
-
-
 }

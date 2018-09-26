@@ -2,17 +2,17 @@ package groupBy
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import scala.concurrent.Await
+import util.StreamWrapperApp
+
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.Random
 /**
   * Created by Ilya Volynin on 23.09.2018 at 18:16.
   */
-object groupByEntry1 {
-  def main(args: Array[String]): Unit = {
-    implicit val as = ActorSystem()
-    implicit val mat = ActorMaterializer()
-    val f = Source
+object groupByEntry1 extends StreamWrapperApp {
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+    Source
       .tick(0 second, 50 millis, "").take(60).
       map {
         _ => if (Random.nextBoolean) (1, s"A") else (2, s"B")
@@ -27,7 +27,6 @@ object groupByEntry1 {
           println(s"length = ${seq.length}")
           println(seq)
       }
-    try Await.result(f, 60.minutes)
-    finally as.terminate()
+
   }
 }
