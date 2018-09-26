@@ -8,7 +8,6 @@ lazy val akkaVersion = "2.5.12"
 
 resolvers += Resolver.jcenterRepo
 resolvers += Resolver.bintrayRepo("ovotech", "maven")
-
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-actor" % akkaVersion,
   // https://mvnrepository.com/artifact/com.typesafe.akka/akka-http_2.11
@@ -38,7 +37,7 @@ libraryDependencies ++= Seq(
   "io.kamon" %% "kamon-prometheus" % "1.0.0"
 )
 
-libraryDependencies +=compilerPlugin(
+libraryDependencies += compilerPlugin(
   "org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full
 )
 
@@ -48,7 +47,7 @@ libraryDependencies ++= {
     "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV,
     "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
     "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
-   )
+  )
 }
 
 libraryDependencies ++= Seq(
@@ -56,4 +55,10 @@ libraryDependencies ++= Seq(
   "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.29.22" % Provided // required only in compile-time
 )
 
-mainClass in (Compile, run) := Some("motiv.Boot")
+mainClass in(Compile, run) := Some("motiv.Boot")
+
+val sampleTask = taskKey[Int]("sample")
+sampleTask := {
+  println(s"sbtVersion=${sbtVersion.value}")
+  0
+}
