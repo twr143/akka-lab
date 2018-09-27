@@ -2,10 +2,7 @@ package streaming
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream._
-import akka.stream.scaladsl.GraphDSL.Builder
-import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Merge, Partition, RunnableGraph, Sink, Source}
-
-import scala.concurrent.Future
+import akka.stream.scaladsl._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 /**
@@ -27,10 +24,8 @@ object SourceQueue extends App {
     val partition = b.add(Partition[Int](workerCount, _ % workerCount))
     val merge = b.add(Merge[Int](workerCount))
 
-//    for (p <- 1 to workerCount) {
         partition ~> Flow[Int].throttle(10, 1.second, 10, ThrottleMode.shaping).map(i=>{println(s"p:1,i:\t$i");i}) ~> merge
         partition ~> Flow[Int].throttle(10, 1.second, 10, ThrottleMode.shaping).map(i=>{println(s"p:2,i:\t$i");i}) ~> merge
-//      }
 
     FlowShape(partition.in, merge.out)
   })
@@ -54,7 +49,8 @@ object SourceQueue extends App {
       system.terminate()
     case Failure(e) =>
       println(s"Stream failed with $e")
+      system.terminate()
   }
-  Thread.sleep(10000)
+  Thread.sleep(3000)
   queue.complete()
 }
