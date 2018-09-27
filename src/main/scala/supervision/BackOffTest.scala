@@ -7,6 +7,13 @@ import akka.actor._
 import akka.pattern.{Backoff, BackoffSupervisor}
 import supervision.BackOffTest.{kennyProps, system}
 import scala.concurrent.duration._
+import akka.pattern._
+import akka.util.Timeout
+import scala.concurrent.ExecutionContext.Implicits.global
+
+/**
+  * Demonstration of different supervision strategies
+  */
 class Kenny() extends Actor {
 
   val id = UUID.randomUUID().toString
@@ -19,13 +26,37 @@ class Kenny() extends Actor {
   }
 }
 object Kenny {
+
   def props(): Props = Props(new Kenny())
 }
 class MyException(msg: String) extends Exception(msg)
+class MainSup extends Actor {
+  import akka.actor.OneForOneStrategy
+  import akka.actor.SupervisorStrategy._
+  import scala.concurrent.duration._
+
+  override val supervisorStrategy =
+    OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
+      case _: MyException =>
+        println("myexception in mainSup, terminating actor system!")
+        context.system.terminate()
+        SupervisorStrategy.Stop
+      case _: Exception =>
+        SupervisorStrategy.Escalate
+      case _ => SupervisorStrategy.Escalate
+    }
+
+  def receive = {
+    case p: Props ⇒ sender() ! context.actorOf(p)
+  }
+}
 object BackOffTest extends App {
 
   // create the ActorSystem instance
+  implicit val timeout = Timeout(3.seconds)
+
   val system = ActorSystem("DeathWatchTest")
+
   val kennyProps = Kenny.props()
 
   val supervisor = BackoffSupervisor.props(
@@ -38,23 +69,22 @@ object BackOffTest extends App {
       OneForOneStrategy() {
         case _: MyException =>
           println("myexception happened")
-          SupervisorStrategy.Restart
+          SupervisorStrategy.Restart // this is subjected to play with
         case _: Exception =>
           SupervisorStrategy.Escalate
         case _ => SupervisorStrategy.Stop
       }))
 
+  val mainSup = system.actorOf(Props[MainSup], name = "MainSuper")
 
-  val superV = system.actorOf(supervisor, name = "Super")
-
-  superV ! "exc"
-
-  Thread.sleep(1000)
-
-  for (i <- 1 to 8) {
-    superV ! "msg"
-    Thread.sleep(800)
+  (mainSup ? supervisor).mapTo[ActorRef].map {
+    superV =>
+      superV ! "exc"
+      Thread.sleep(1000)
+      for (i <- 1 to 8) {
+        superV ! "msg"
+        Thread.sleep(800)
+      }
+      system.terminate()
   }
-
-    system.terminate()
 }
