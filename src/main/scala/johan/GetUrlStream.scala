@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 /**
   * Natural numbers (up to maximum long, then it wraps around) as a service http://127.0.0.1/numbers
   */
-object Sample3 extends App {
+object GetUrlStream extends App {
   implicit val system = ActorSystem()
   import system.dispatcher
   implicit val mat = ActorMaterializer()
