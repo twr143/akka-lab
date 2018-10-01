@@ -8,45 +8,48 @@ import scala.util.{Failure, Random, Success}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit._
-object UniformRandomSpin {
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+import util.StreamWrapperApp
+
+object UniformRandomSpin extends StreamWrapperApp {
+
   val random = new Random()
 
-  def main(args: Array[String]): Unit = {
-    runAndComplete(parallelMapAsyncAsync, "uniformRandomSpin", toComplete = false)
-    runAndComplete(parallelMapAsyncAsyncUnordered, "parallelMapAsyncAsyncUnordered", toComplete = false)
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+    Future.sequence(List(timeCheckWrapper(parallelMapAsyncAsync, "uniformRandomSpin"),
+      timeCheckWrapper(parallelMapAsyncAsyncUnordered, "parallelMapAsyncAsyncUnordered"),
+      timeCheckWrapper(parallelNonBlockingCall, "parallelNonBlockingCall")))
   }
 
-  def runAndComplete(f: () => Future[Done], name: String, toComplete: Boolean): Unit = {
+  def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, m: ActorMaterializer): Future[Done] = {
     val start = System.currentTimeMillis()
-    f().onComplete {
+    val res = f()
+    res.onComplete {
       case Success(x) =>
         println(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
-        if (toComplete) system.terminate()
       case Failure(e) =>
         println(s"Failure: ${e.getMessage}")
-        system.terminate()
+        as.terminate()
     }
+    res
   }
 
-  def uniformRandomSpin(value: Int): Future[Int] = Future {
+  def uniformRandomSpin(value: Int)(implicit as: ActorSystem, mat: ActorMaterializer): Future[Int] = Future {
     val max = random.nextInt(6)
     val start = System.currentTimeMillis()
     while ((System.currentTimeMillis() - start) < max) {}
     value
   }
 
-  def nonBlockingCall(value: Int): Future[Int] = {
+  def nonBlockingCall(value: Int)(implicit as: ActorSystem, mat: ActorMaterializer): Future[Int] = {
     val promise = Promise[Int]
     val max = FiniteDuration(random.nextInt(6), MILLISECONDS)
-    system.scheduler.scheduleOnce(max) {
+    as.scheduler.scheduleOnce(max) {
       promise.success(value)
     }
     promise.future
   }
 
-  def consequtiveMapAsync(): Future[Done] = {
+  def consequtiveMapAsync()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsync(1)(uniformRandomSpin)
       .mapAsync(1)(uniformRandomSpin)
@@ -55,7 +58,7 @@ object UniformRandomSpin {
       .runWith(Sink.ignore)
   }
 
-  def consequtiveMapAsyncAsync(): Future[Done] = {
+  def consequtiveMapAsyncAsync()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsync(1)(uniformRandomSpin).async
       .mapAsync(1)(uniformRandomSpin).async
@@ -64,21 +67,21 @@ object UniformRandomSpin {
       .runWith(Sink.ignore)
   }
 
-  def parallelMapAsyncAsync(): Future[Done] = {
+  def parallelMapAsyncAsync()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsync(8)(uniformRandomSpin).async
       .runWith(Sink.ignore)
   }
-  def parallelMapAsyncAsyncUnordered(): Future[Done] = {
+
+  def parallelMapAsyncAsyncUnordered()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
       .mapAsyncUnordered(8)(uniformRandomSpin).async
       .runWith(Sink.ignore)
   }
 
-
-  def parallelNonBlockingCall(): Future[Done] = {
+  def parallelNonBlockingCall()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
     Source(1 to 1000)
-      .mapAsync(1000)(nonBlockingCall).async
+      .mapAsync(8)(nonBlockingCall).async
       .runWith(Sink.ignore)
   }
 }
