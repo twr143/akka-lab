@@ -1,12 +1,14 @@
-package streaming
+package streaming.graphs
+
 import java.io.File
+
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.dispatch.forkjoin.ThreadLocalRandom
-import akka.stream.impl.fusing.Filter
-import akka.stream.{ActorMaterializer, ClosedShape}
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, Keep, RunnableGraph, Sink, Source}
+import akka.stream.{ActorMaterializer, ClosedShape}
 import akka.util.ByteString
-import streaming.Consumer2._
+import streaming.graphs.Consumer2._
+
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
 /*

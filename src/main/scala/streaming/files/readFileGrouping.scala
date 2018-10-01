@@ -1,16 +1,14 @@
-package streaming
-
-import java.io.File
+package streaming.files
 import java.nio.file.{Files, Paths}
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Framing}
 import akka.util.ByteString
-import scala.collection.immutable.TreeMap
-import scala.concurrent.duration._
+
 import scala.concurrent.{Await, Future}
-import scala.util.control.NonFatal
+import scala.concurrent.duration._
 
 /*
 created by Ilya Volynin at 14.12.17

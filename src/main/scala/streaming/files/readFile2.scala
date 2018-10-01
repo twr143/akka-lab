@@ -1,15 +1,14 @@
-package streaming
+package streaming.files
 import java.io.File
-import java.nio.file.Path
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source}
 import akka.util.ByteString
-import streaming.BackPressure1.system
 import util.StreamWrapperApp
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.Future
 
 /**
   * Created by Ilya Volynin on 16.06.2018 at 14:35.
@@ -34,4 +33,3 @@ object readFile2 extends StreamWrapperApp {
     resFuture
   }
 }
-
