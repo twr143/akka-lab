@@ -1,5 +1,6 @@
 package motiv.jsoniterWsServer
 import java.nio.charset.StandardCharsets
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage}
@@ -7,9 +8,12 @@ import akka.http.scaladsl.server.Directives.{handleWebSocketMessages, path}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
+
 import scala.concurrent.Future
 import motiv.jsoniterWsServer.Model._
+
 import scala.io.StdIn
+import scala.util.control.NonFatal
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:51.
@@ -57,6 +61,10 @@ object JsoniterWSServerEntry extends App {
         case Creds(login, _) ⇒ DenyResponse(login, "bad credentials")
       }
       .mapAsync(CORE_COUNT * 2 - 1)(out ⇒ Future(TextMessage(writeToArray[Outgoing](out))))
+      .recover {
+        case e: JsonParseException => TextMessage(writeToArray[Outgoing](InvalidBody(e.getMessage)))
+        case NonFatal(e) => TextMessage(writeToArray[Outgoing](GeneralException(e.getMessage)))
+      }
   }
 
   val route = path("ws_api")(handleWebSocketMessages(flow))
