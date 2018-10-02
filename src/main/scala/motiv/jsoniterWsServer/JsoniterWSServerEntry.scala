@@ -57,8 +57,8 @@ object JsoniterWSServerEntry extends App {
         .map(in ⇒ readFromArray[Creds](in.getBytes("UTF-8"))))
       .map {
         case Creds(login, password) if login == "admin" && password == "admin" ⇒
-          WelcomeResponse(login, "successfully logged in")
-        case Creds(login, _) ⇒ DenyResponse(login, "bad credentials")
+          WelcomeResponse(login)
+        case Creds(login, _) ⇒ DenyResponse(login)
       }
       .mapAsync(CORE_COUNT * 2 - 1)(out ⇒ Future(TextMessage(writeToArray[Outgoing](out))))
       .recover {
