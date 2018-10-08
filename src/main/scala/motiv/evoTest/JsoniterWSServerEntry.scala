@@ -1,11 +1,11 @@
 package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.http.scaladsl.server.Directives.{handleWebSocketMessages, path}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
@@ -35,7 +35,9 @@ object JsoniterWSServerEntry extends App {
 
   var tables: List[Table] = List(Table(1, "table - James Bond", 7), Table(2, "table - Mission Impossible", 4))
 
-  var adminLoggedInMap = mutable.Map[java.util.UUID, Boolean]()
+  var adminLoggedInMap = Map[java.util.UUID, Boolean]()
+
+  var subscribedEvents = Map[java.util.UUID, ListBuffer[String]]()
 
   def flow(reqId: UUID): Flow[Message, Message, Any] = {
     Flow[Message]
@@ -46,19 +48,28 @@ object JsoniterWSServerEntry extends App {
         .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
       .map {
         case login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
-          adminLoggedInMap(reqId) = true
+          adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
           login_successful(usertype = "admin", reqId)
+        case login(login, password) if login == "user" && password == "user" ⇒
+          login_successful(usertype = "user", reqId)
         case login(login, _) ⇒ login_failed(login)
         case ping(seq) => pong(seq)
-        case _: subscribe_tables => table_list(tables)
-        case _: unsubscribe_tables => unsubscribed_from_tables
+        case _: subscribe_tables =>
+          if (!subscribedEvents.contains(reqId))
+            subscribedEvents += (reqId -> ListBuffer.empty)
+          table_list(tables)
+        case _: unsubscribe_tables =>
+          subscribedEvents -= reqId
+          unsubscribed_from_tables
         case add_table(t, after_i) if adminLoggedInMap(reqId) =>
           tables = insert(tables, after_i, t)
+          updateSubscribed(s"added ${t.id}")
           table_added(after_i, t)
         case update_table(t) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, t)
           if (i > -1) {
             tables = updateTableList(tables, t, i)
+            updateSubscribed(s"updated ${t.id}")
             table_updated(t)
           } else
             update_failed(t)
@@ -66,10 +77,18 @@ object JsoniterWSServerEntry extends App {
           val i = findTableIndex(tables, id)
           if (i > -1) {
             tables = tables.filterNot(_.id == id)
+            updateSubscribed(s"removed $id")
             table_removed(id)
           } else
             remove_failed(id)
         case _: add_table | _: update_table | _: remove_table => not_authorized
+        case query_changes() => // assume periodic polling from client
+          if (subscribedEvents.contains(reqId)) {
+            val events = subscribedEvents(reqId).clone()
+            subscribedEvents(reqId).clear()
+            changes(events)
+          }
+          else not_subscribed
       }
       .mapAsync(CORE_COUNT * 2 - 1)(out ⇒ Future(TextMessage(writeToArray[Outgoing](out))))
       .recover {
@@ -120,5 +139,9 @@ object JsoniterWSServerEntry extends App {
 
   def updateTableList(list: List[Table], value: Table, index: Int): List[Table] = {
     list.take(index) ++ List(value) ++ list.drop(index + 1)
+  }
+
+  def updateSubscribed(newStatus: String): Unit = {
+    subscribedEvents = subscribedEvents.transform((_, vals) => vals += newStatus)
   }
 }

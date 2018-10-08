@@ -9,6 +9,8 @@ import scala.collection.mutable.{ListBuffer, MutableList}
   */
 object Model {
 
+  case class Table(id: Int, name: String, participants: Int)
+
   sealed trait Incoming
 
   sealed trait Outgoing
@@ -26,6 +28,8 @@ object Model {
   case class update_table(table: Table) extends Incoming
 
   case class remove_table(id: Int) extends Incoming
+
+  case class query_changes() extends Incoming
 
   case class login_successful(usertype: String, reqId: UUID) extends Outgoing
 
@@ -53,10 +57,12 @@ object Model {
 
   case object not_authorized extends Outgoing
 
+  case object not_subscribed extends Outgoing
+
+  case class changes(c: ListBuffer[String]) extends Outgoing
+
   implicit val codecIn: JsonValueCodec[Incoming] = JsonCodecMaker.make[Incoming](CodecMakerConfig(discriminatorFieldName = "$type"))
 
   implicit val codecOut: JsonValueCodec[Outgoing] = JsonCodecMaker.make[Outgoing](CodecMakerConfig(discriminatorFieldName = "$type"))
-
-  case class Table(id: Int, name: String, participants: Int)
 
 }
