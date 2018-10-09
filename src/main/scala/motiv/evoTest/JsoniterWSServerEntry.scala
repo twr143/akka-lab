@@ -56,11 +56,11 @@ object JsoniterWSServerEntry extends App {
           LoginSuccessful(usertype = "user", reqId)
         case Login(login, _) ⇒ LoginFailed(login)
         case Ping(seq) => Pong(seq)
-        case _: SubscribeTables =>
+        case SubscribeTables =>
           if (!subscribedEvents.contains(reqId))
             subscribedEvents += (reqId -> ListBuffer.empty)
           TableList(tables)
-        case _: UnsubscribeTables =>
+        case UnsubscribeTables =>
           subscribedEvents -= reqId
           UnsubscribedFromTables
         case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
@@ -84,7 +84,7 @@ object JsoniterWSServerEntry extends App {
           } else
             RemoveFailed(id)
         case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
-        case QueryChanges() => // assume periodic polling from client
+        case QueryChanges => // assume periodic polling from client
           if (subscribedEvents.contains(reqId)) {
             val events = subscribedEvents(reqId).clone()
             subscribedEvents(reqId).clear()

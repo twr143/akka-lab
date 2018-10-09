@@ -19,9 +19,9 @@ object Model {
 
   case class Ping(seq: Int) extends Incoming
 
-  case class SubscribeTables() extends Incoming
+  case object SubscribeTables extends Incoming
 
-  case class UnsubscribeTables() extends Incoming
+  case object UnsubscribeTables extends Incoming
 
   case class AddTable(table: Table, after_id: Int) extends Incoming
 
@@ -29,7 +29,7 @@ object Model {
 
   case class RemoveTable(id: Int) extends Incoming
 
-  case class QueryChanges() extends Incoming
+  case object QueryChanges extends Incoming
 
   case class LoginSuccessful(usertype: String, reqId: UUID) extends Outgoing
 
@@ -62,15 +62,8 @@ object Model {
   case class Changes(c: ListBuffer[String]) extends Outgoing
 
   implicit val codecIn: JsonValueCodec[Incoming] = JsonCodecMaker.make[Incoming](CodecMakerConfig(adtLeafClassNameMapper =
-    (fullClassName: String) => {
-      val shortName = fullClassName.substring(Math.max(fullClassName.lastIndexOf('.') + 1, 0))
-      shortName.replaceAll("([A-Z])", "_$1").toLowerCase().substring(1)
-    }, discriminatorFieldName = "$type"))
+    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = "$type"))
 
-  implicit val codecOut: JsonValueCodec[Outgoing] = JsonCodecMaker.make[Outgoing](CodecMakerConfig(
-    adtLeafClassNameMapper = (fullClassName: String) => {
-      val shortName = fullClassName.substring(Math.max(fullClassName.lastIndexOf('.') + 1, 0))
-      shortName.replaceAll("([A-Z])", "_$1").toLowerCase().substring(1)
-    }, discriminatorFieldName = "$type"))
-
+  implicit val codecOut: JsonValueCodec[Outgoing] = JsonCodecMaker.make[Outgoing](CodecMakerConfig(adtLeafClassNameMapper =
+    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = "$type"))
 }
