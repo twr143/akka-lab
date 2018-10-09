@@ -51,8 +51,8 @@ libraryDependencies ++= {
 }
 
 libraryDependencies ++= Seq(
-  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % "0.29.22" % Compile,
-  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.29.22" % Provided // required only in compile-time
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-core" % "0.34.1" % Compile,
+  "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.34.1" % Provided // required only in compile-time
 )
 
 mainClass in(Compile, run) := Some("motiv.Boot")

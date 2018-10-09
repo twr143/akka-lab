@@ -62,8 +62,8 @@ object Model {
   case class Changes(c: ListBuffer[String]) extends Outgoing
 
   implicit val codecIn: JsonValueCodec[Incoming] = JsonCodecMaker.make[Incoming](CodecMakerConfig(adtLeafClassNameMapper =
-    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = "$type"))
+    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = Some("$type")))
 
   implicit val codecOut: JsonValueCodec[Outgoing] = JsonCodecMaker.make[Outgoing](CodecMakerConfig(adtLeafClassNameMapper =
-    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = "$type"))
+    (JsonCodecMaker.simpleClassName _).andThen(JsonCodecMaker.enforce_snake_case), discriminatorFieldName = Some("$type")))
 }
