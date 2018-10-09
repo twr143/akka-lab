@@ -2,16 +2,18 @@ package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.scaladsl.Flow
 import com.github.plokhotnyuk.jsoniter_scala.core._
+
 import scala.concurrent.Future
 import motiv.evoTest.Model._
-import scala.collection.mutable
+
 import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 import scala.util.control.NonFatal
@@ -47,48 +49,48 @@ object JsoniterWSServerEntry extends App {
       .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
         .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
       .map {
-        case login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
+        case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
           adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
-          login_successful(usertype = "admin", reqId)
-        case login(login, password) if login == "user" && password == "user" ⇒
-          login_successful(usertype = "user", reqId)
-        case login(login, _) ⇒ login_failed(login)
-        case ping(seq) => pong(seq)
-        case _: subscribe_tables =>
+          LoginSuccessful(usertype = "admin", reqId)
+        case Login(login, password) if login == "user" && password == "user" ⇒
+          LoginSuccessful(usertype = "user", reqId)
+        case Login(login, _) ⇒ LoginFailed(login)
+        case Ping(seq) => Pong(seq)
+        case _: SubscribeTables =>
           if (!subscribedEvents.contains(reqId))
             subscribedEvents += (reqId -> ListBuffer.empty)
-          table_list(tables)
-        case _: unsubscribe_tables =>
+          TableList(tables)
+        case _: UnsubscribeTables =>
           subscribedEvents -= reqId
-          unsubscribed_from_tables
-        case add_table(t, after_i) if adminLoggedInMap(reqId) =>
+          UnsubscribedFromTables
+        case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
           tables = insert(tables, after_i, t)
           updateSubscribed(s"added ${t.id}")
-          table_added(after_i, t)
-        case update_table(t) if adminLoggedInMap(reqId) =>
+          TableAdded(after_i, t)
+        case UpdateTable(t) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, t)
           if (i > -1) {
             tables = updateTableList(tables, t, i)
             updateSubscribed(s"updated ${t.id}")
-            table_updated(t)
+            TableUpdated(t)
           } else
-            update_failed(t)
-        case remove_table(id) if adminLoggedInMap(reqId) =>
+            UpdateFailed(t)
+        case RemoveTable(id) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, id)
           if (i > -1) {
             tables = tables.filterNot(_.id == id)
             updateSubscribed(s"removed $id")
-            table_removed(id)
+            TableRemoved(id)
           } else
-            remove_failed(id)
-        case _: add_table | _: update_table | _: remove_table => not_authorized
-        case query_changes() => // assume periodic polling from client
+            RemoveFailed(id)
+        case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
+        case QueryChanges() => // assume periodic polling from client
           if (subscribedEvents.contains(reqId)) {
             val events = subscribedEvents(reqId).clone()
             subscribedEvents(reqId).clear()
-            changes(events)
+            Changes(events)
           }
-          else not_subscribed
+          else NotSubscribed
       }
       .mapAsync(CORE_COUNT * 2 - 1)(out ⇒ Future(TextMessage(writeToArray[Outgoing](out))))
       .recover {
