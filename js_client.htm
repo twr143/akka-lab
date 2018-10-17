@@ -2,7 +2,7 @@
 
 var ws = new WebSocket("ws://127.0.0.1:9000/ws_api");
       ws.onopen = function() {
-            // Web Socket подключён. Вы можете отправить данные с помощью метода send().
+            // Web Socket РїРѕРґРєР»СЋС‡С‘РЅ. Р’С‹ РјРѕР¶РµС‚Рµ РѕС‚РїСЂР°РІРёС‚СЊ РґР°РЅРЅС‹Рµ СЃ РїРѕРјРѕС‰СЊСЋ РјРµС‚РѕРґР° send().
        ws.addEventListener('message', function (event) {
     		console.log('Message from server ', event.data);
 			});
