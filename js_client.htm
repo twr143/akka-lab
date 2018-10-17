@@ -1,0 +1,36 @@
+<script>
+
+var ws = new WebSocket("ws://127.0.0.1:9000/ws_api");
+      ws.onopen = function() {
+            // Web Socket подключён. Вы можете отправить данные с помощью метода send().
+       ws.addEventListener('message', function (event) {
+    		console.log('Message from server ', event.data);
+			});
+              ws.send(JSON.stringify({
+  "$type":"login",
+"username":"admin",
+"password":"admin"
+}));
+        ws.send(JSON.stringify({
+"$type": "subscribe_tables"
+}));
+	for (i=0;i<10000;i++)
+    ws.send(JSON.stringify({
+    
+  "$type": "add_table",
+  "after_id": i+1,
+  "table": {
+"id":i+2,
+    "name": "table - Foo Fighters "+ i*i,
+    "participants": 4*i
+  }
+    }));
+        ws.send(JSON.stringify({
+"$type": "subscribe_tables"
+}));
+        ws.send(JSON.stringify({
+"$type": "query_changes"
+}));
+    
+};
+</script>

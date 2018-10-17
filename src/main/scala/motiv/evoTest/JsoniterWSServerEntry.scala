@@ -41,13 +41,11 @@ object JsoniterWSServerEntry extends App {
 
   var subscribedEvents = Map[java.util.UUID, ListBuffer[String]]()
 
-  val countNum = 10000
+  val countNum = 1000
 
   def timeCheck(duration: FiniteDuration): Unit = {
     println(s"$countNum elements passed in ${duration.toMillis}")
   }
-
-  var counter = 0
 
   def flow(reqId: UUID): Flow[Message, Message, Any] = {
     Flow[Message]
@@ -55,8 +53,9 @@ object JsoniterWSServerEntry extends App {
         case tm: TextMessage ⇒ tm.textStream
       }
       .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
-        .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8")))).map { x => counter += 1; x }
-      .timedIntervalBetween(_ => counter % countNum == 0, timeCheck)
+        .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
+      .scan(0, Ping(0): Incoming)((t, out) => (t._1 + 1, out))
+      .timedIntervalBetween(x => x._1 % countNum == 0, timeCheck).map(_._2)
       .map {
         case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
           adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
