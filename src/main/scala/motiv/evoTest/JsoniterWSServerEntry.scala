@@ -2,21 +2,21 @@ package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.{Flow, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
-
 import scala.concurrent.Future
 import motiv.evoTest.Model._
-
 import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 import scala.util.control.NonFatal
+import akka.stream.contrib.Implicits.TimedFlowDsl
+import scala.concurrent.duration
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:51.
@@ -41,13 +41,22 @@ object JsoniterWSServerEntry extends App {
 
   var subscribedEvents = Map[java.util.UUID, ListBuffer[String]]()
 
+  val countNum = 10000
+
+  def timeCheck(duration: FiniteDuration): Unit = {
+    println(s"$countNum elements passed in ${duration.toMillis}")
+  }
+
+  var counter = 0
+
   def flow(reqId: UUID): Flow[Message, Message, Any] = {
     Flow[Message]
       .collect {
         case tm: TextMessage ⇒ tm.textStream
       }
       .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
-        .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
+        .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8")))).map { x => counter += 1; x }
+      .timedIntervalBetween(_ => counter % countNum == 0, timeCheck)
       .map {
         case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
           adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
@@ -59,7 +68,7 @@ object JsoniterWSServerEntry extends App {
         case SubscribeTables =>
           if (!subscribedEvents.contains(reqId))
             subscribedEvents += (reqId -> ListBuffer.empty)
-          TableList(tables)
+          TableList(tables.take(100))
         case UnsubscribeTables =>
           subscribedEvents -= reqId
           UnsubscribedFromTables
@@ -88,7 +97,7 @@ object JsoniterWSServerEntry extends App {
           if (subscribedEvents.contains(reqId)) {
             val events = subscribedEvents(reqId).clone()
             subscribedEvents(reqId).clear()
-            Changes(events)
+            Changes(events.take(100))
           }
           else NotSubscribed
       }

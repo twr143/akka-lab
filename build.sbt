@@ -55,6 +55,8 @@ libraryDependencies ++= Seq(
   "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.34.1" % Provided // required only in compile-time
 )
 
+libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
+
 mainClass in(Compile, run) := Some("motiv.Boot")
 
 val sampleTask = taskKey[Int]("sample")

@@ -1,7 +1,10 @@
 package motiv.evoTest
 import java.util.UUID
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
-import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
+import com.github.plokhotnyuk.jsoniter_scala.macros.{
+  CodecMakerConfig,
+  JsonCodecMaker
+}
 import scala.collection.mutable.{ListBuffer, MutableList}
 
 /**
