@@ -15,8 +15,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 import scala.util.control.NonFatal
 import akka.stream.contrib.Implicits.TimedFlowDsl
-import scala.concurrent.duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:51.
@@ -55,7 +54,7 @@ object JsoniterWSServerEntry extends App {
       .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
         .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
       .scan(0, Ping(0): Incoming)((t, out) => (t._1 + 1, out))
-      .timedIntervalBetween(x => x._1 % countNum == 0, timeCheck).map(_._2)
+      .timedIntervalBetween(_._1 % countNum == 0, timeCheck).map(_._2)
       .map {
         case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
           adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
