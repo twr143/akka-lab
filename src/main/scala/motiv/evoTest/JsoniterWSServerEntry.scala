@@ -42,7 +42,7 @@ object JsoniterWSServerEntry extends App {
 
   var adminLoggedInMap = Map[java.util.UUID, Boolean]()
 
-  var subscribedUsers = Set[ActorRef]()
+  var subscribers = Set[ActorRef]()
 
   val countNum = 1000
 
@@ -71,23 +71,22 @@ object JsoniterWSServerEntry extends App {
         case Login(login, _) ⇒ LoginFailed(login)
         case Ping(seq) => Pong(seq)
         case SubscribeTables =>
-          if (!subscribedUsers.contains(routerActor))
-            subscribedUsers += routerActor
+            subscribers += routerActor
           TableList(tables.take(100))
         case UnsubscribeTables =>
-          subscribedUsers -= routerActor
+          subscribers -= routerActor
           UnsubscribedFromTables
         case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
           tables = insert(tables, after_i, t)
           val added = TableAdded(after_i, t)
-          routerManager ! Notification(routerActor, subscribedUsers, added)
+          routerManager ! Notification(routerActor, subscribers, added)
           added
         case UpdateTable(t) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, t)
           if (i > -1) {
             tables = updateTableList(tables, t, i)
             val updated = TableUpdated(t)
-            routerManager ! Notification(routerActor, subscribedUsers, updated)
+            routerManager ! Notification(routerActor, subscribers, updated)
             updated
           } else
             UpdateFailed(t)
@@ -96,16 +95,16 @@ object JsoniterWSServerEntry extends App {
           if (i > -1) {
             tables = tables.filterNot(_.id == id)
             val removed = TableRemoved(id)
-            routerManager ! Notification(routerActor, subscribedUsers, removed)
+            routerManager ! Notification(routerActor, subscribers, removed)
             removed
           } else
             RemoveFailed(id)
         case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
       }
-      .map(IncomingMessage(_))
+      .map(IncomingMessage)
       .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
     val outgoing: Source[Message, NotUsed] =
-      Source.actorRef[OutgoingMessage](10, OverflowStrategy.fail)
+      Source.actorRef[OutgoingMessage](1000, OverflowStrategy.fail)
         .mapMaterializedValue { outActor =>
           // give the user actor a way to send messages out
           routerActor ! Connected(outActor)
@@ -119,7 +118,6 @@ object JsoniterWSServerEntry extends App {
     Flow.fromSinkAndSource(incoming, outgoing)
   }
 
-  //  val route = path("ws_api")(handleWebSocketMessages(flow))
   val route: HttpRequest => HttpResponse = {
     case req@HttpRequest(HttpMethods.GET, Uri.Path("/ws_api"), _, _, _) =>
       req.header[UpgradeToWebSocket] match {
