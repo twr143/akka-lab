@@ -2,12 +2,13 @@ package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import akka.actor.ActorSystem
+import akka.NotUsed
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Source}
+import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import scala.concurrent.Future
 import motiv.evoTest.Model._
@@ -15,7 +16,10 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 import scala.util.control.NonFatal
 import akka.stream.contrib.Implicits.TimedFlowDsl
+import motiv.evoTest.RequestRouter._
+import motiv.evoTest.RouterManager.Notification
 import scala.concurrent.duration._
+import scala.util.Random
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:51.
@@ -38,7 +42,7 @@ object JsoniterWSServerEntry extends App {
 
   var adminLoggedInMap = Map[java.util.UUID, Boolean]()
 
-  var subscribedEvents = Map[java.util.UUID, ListBuffer[String]]()
+  var subscribedUsers = Set[ActorRef]()
 
   val countNum = 1000
 
@@ -46,8 +50,11 @@ object JsoniterWSServerEntry extends App {
     println(s"$countNum elements passed in ${duration.toMillis}")
   }
 
+  val routerManager = system.actorOf(Props[RouterManager], "routerManager")
+
   def flow(reqId: UUID): Flow[Message, Message, Any] = {
-    Flow[Message]
+    val routerActor = system.actorOf(Props(new RequestRouter(routerManager)))
+    val incoming = Flow[Message]
       .collect {
         case tm: TextMessage ⇒ tm.textStream
       }
@@ -64,46 +71,52 @@ object JsoniterWSServerEntry extends App {
         case Login(login, _) ⇒ LoginFailed(login)
         case Ping(seq) => Pong(seq)
         case SubscribeTables =>
-          if (!subscribedEvents.contains(reqId))
-            subscribedEvents += (reqId -> ListBuffer.empty)
+          if (!subscribedUsers.contains(routerActor))
+            subscribedUsers += routerActor
           TableList(tables.take(100))
         case UnsubscribeTables =>
-          subscribedEvents -= reqId
+          subscribedUsers -= routerActor
           UnsubscribedFromTables
         case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
           tables = insert(tables, after_i, t)
-          updateSubscribed(s"added ${t.id}")
-          TableAdded(after_i, t)
+          val added = TableAdded(after_i, t)
+          routerManager ! Notification(routerActor, subscribedUsers, added)
+          added
         case UpdateTable(t) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, t)
           if (i > -1) {
             tables = updateTableList(tables, t, i)
-            updateSubscribed(s"updated ${t.id}")
-            TableUpdated(t)
+            val updated = TableUpdated(t)
+            routerManager ! Notification(routerActor, subscribedUsers, updated)
+            updated
           } else
             UpdateFailed(t)
         case RemoveTable(id) if adminLoggedInMap(reqId) =>
           val i = findTableIndex(tables, id)
           if (i > -1) {
             tables = tables.filterNot(_.id == id)
-            updateSubscribed(s"removed $id")
-            TableRemoved(id)
+            val removed = TableRemoved(id)
+            routerManager ! Notification(routerActor, subscribedUsers, removed)
+            removed
           } else
             RemoveFailed(id)
         case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
-        case QueryChanges => // assume periodic polling from client
-          if (subscribedEvents.contains(reqId)) {
-            val events = subscribedEvents(reqId).clone()
-            subscribedEvents(reqId).clear()
-            Changes(events.take(100))
-          }
-          else NotSubscribed
       }
-      .mapAsync(CORE_COUNT * 2 - 1)(out ⇒ Future(TextMessage(writeToArray[Outgoing](out))))
-      .recover {
-        case e: JsonParseException => TextMessage(writeToArray[Outgoing](InvalidBody(e.getMessage)))
-        case NonFatal(e) => TextMessage(writeToArray[Outgoing](GeneralException(e.getMessage)))
-      }
+      .map(IncomingMessage(_))
+      .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
+    val outgoing: Source[Message, NotUsed] =
+      Source.actorRef[OutgoingMessage](10, OverflowStrategy.fail)
+        .mapMaterializedValue { outActor =>
+          // give the user actor a way to send messages out
+          routerActor ! Connected(outActor)
+          NotUsed
+        }.keepAlive(10.seconds, () => OutgoingMessage(Pong(Random.nextInt(100))))
+        .mapAsync(CORE_COUNT * 2 - 1)(outgoing ⇒ Future(TextMessage(writeToArray[Outgoing](outgoing.obj))))
+        .recover {
+          case e: JsonParseException => TextMessage(writeToArray[Outgoing](InvalidBody(e.getMessage)))
+          case NonFatal(e) => TextMessage(writeToArray[Outgoing](GeneralException(e.getMessage)))
+        }
+    Flow.fromSinkAndSource(incoming, outgoing)
   }
 
   //  val route = path("ws_api")(handleWebSocketMessages(flow))
@@ -148,9 +161,5 @@ object JsoniterWSServerEntry extends App {
 
   def updateTableList(list: List[Table], value: Table, index: Int): List[Table] = {
     list.take(index) ++ List(value) ++ list.drop(index + 1)
-  }
-
-  def updateSubscribed(newStatus: String): Unit = {
-    subscribedEvents = subscribedEvents.transform((_, vals) => vals += newStatus)
   }
 }
