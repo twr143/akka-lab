@@ -4,6 +4,7 @@ package motiv.evoTest
   */
 import akka.actor._
 import motiv.evoTest.Model.Outgoing
+import motiv.evoTest.RequestRouter.IncomingMessage
 
 object RouterManager {
 
@@ -23,6 +24,6 @@ class RouterManager extends Actor {
       context.watch(sender())
     case Terminated(user) =>
     case msg: Notification =>
-      msg.subscribers.filter(_ != msg.sender).foreach(_ ! msg)
+      msg.subscribers.filter(_ != msg.sender).foreach(_ ! IncomingMessage(msg.message))
   }
 }

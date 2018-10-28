@@ -29,8 +29,6 @@ class RequestRouter(manager: ActorRef) extends Actor {
     {
       case IncomingMessage(obj) =>
         outgoing ! OutgoingMessage(obj)
-      case Notification(_, _, obj) =>
-        outgoing ! OutgoingMessage(obj)
     }
   }
 }
