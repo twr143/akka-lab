@@ -7,7 +7,7 @@ import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.stream.{ActorMaterializer, OverflowStrategy}
+import akka.stream.{ActorAttributes, ActorMaterializer, OverflowStrategy, Supervision}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import scala.concurrent.Future
@@ -52,6 +52,15 @@ object JsoniterWSServerEntry extends App {
 
   val routerManager = system.actorOf(Props[RouterManager], "routerManager")
 
+  def decider (router: ActorRef): Supervision.Decider = {
+    case e: JsonParseException ⇒
+      router ! IncomingMessage(InvalidBody(e.getMessage))
+      Supervision.Resume
+    case NonFatal(e) ⇒
+      router ! IncomingMessage(GeneralException(e.getMessage))
+      Supervision.Stop
+  }
+
   def flow(reqId: UUID): Flow[Message, Message, Any] = {
     val routerActor = system.actorOf(Props(new RequestRouter(routerManager)))
     val incoming = Flow[Message]
@@ -71,7 +80,7 @@ object JsoniterWSServerEntry extends App {
         case Login(login, _) ⇒ LoginFailed(login)
         case Ping(seq) => Pong(seq)
         case SubscribeTables =>
-            subscribers += routerActor
+          subscribers += routerActor
           TableList(tables.take(100))
         case UnsubscribeTables =>
           subscribers -= routerActor
@@ -103,6 +112,7 @@ object JsoniterWSServerEntry extends App {
       }
       .map(IncomingMessage)
       .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
+      .withAttributes(ActorAttributes.supervisionStrategy(decider(routerActor)))
     val outgoing: Source[Message, NotUsed] =
       Source.actorRef[OutgoingMessage](1000, OverflowStrategy.fail)
         .mapMaterializedValue { outActor =>
@@ -111,10 +121,6 @@ object JsoniterWSServerEntry extends App {
           NotUsed
         }.keepAlive(10.seconds, () => OutgoingMessage(Pong(Random.nextInt(100))))
         .mapAsync(CORE_COUNT * 2 - 1)(outgoing ⇒ Future(TextMessage(writeToArray[Outgoing](outgoing.obj))))
-        .recover {
-          case e: JsonParseException => TextMessage(writeToArray[Outgoing](InvalidBody(e.getMessage)))
-          case NonFatal(e) => TextMessage(writeToArray[Outgoing](GeneralException(e.getMessage)))
-        }
     Flow.fromSinkAndSource(incoming, outgoing)
   }
 
