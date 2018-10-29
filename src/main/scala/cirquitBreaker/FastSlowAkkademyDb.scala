@@ -1,21 +1,24 @@
 package cirquitBreaker
-
 import akka.actor.{Actor, ActorSystem, Props, Status}
 import akka.event.Logging
 import akka.pattern.CircuitBreaker
 import akka.util.Timeout
+
 import scala.concurrent.duration._
 import akka.pattern._
-
+import akka.stream.ActorMaterializer
+import util.StreamWrapperApp
 
 import scala.collection.mutable.HashMap
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 class FastSlowAkkademyDb extends Actor {
+
   val map = new HashMap[String, Object]
+
   val log = Logging(context.system, this)
 
-  override def receive:Receive = {
+  override def receive: Receive = {
     case SetRequest(key, value) =>
       log.info("received SetRequest - key: {} value: {}", key, value)
       map.put(key, value)
@@ -30,37 +33,45 @@ class FastSlowAkkademyDb extends Actor {
     val response: Option[Object] = map.get(key)
     response match {
       case Some(x) => sender() ! x
-      case None => sender() ! Status.Failure(new KeyNotFoundException(key))
+      case None => sender() ! Status.Failure(KeyNotFoundException(key))
     }
   }
 }
 
-object Main extends App {
-  val system = ActorSystem("Akkademy")
-  implicit val ec = system.dispatcher
+object FSDbEntry extends StreamWrapperApp {
 
-  val breaker =
-    new CircuitBreaker(system.scheduler,
-      maxFailures = 10,
-      callTimeout = 1 seconds,
-      resetTimeout = 1 seconds).
-      onOpen(println("circuit breaker opened!")).
-      onClose(println("circuit breaker closed!")).
-      onHalfOpen(println("circuit breaker half-open"))
-
-  implicit val timeout = Timeout(100 millis)
-  val db = system.actorOf(Props[FastSlowAkkademyDb])
-  Await.result(db ? SetRequest("key", "value"), 2 seconds)
-
-  (1 to 100).map(x => {
-    Thread.sleep(50)
-    val askFuture = breaker.withCircuitBreaker(db ? GetRequest("key"))
-    askFuture.map(x => "got it: " + x).recover({
-      case t ⇒ "error: " + t.toString
-    }).foreach(x ⇒ println(x))
-  })
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+    implicit val ec: ExecutionContextExecutor = as.dispatcher
+    implicit val timeout: Timeout = Timeout(100 millis)
+    val db = as.actorOf(Props[FastSlowAkkademyDb])
+    val log = Logging(as, db)
+    val breaker =
+      new CircuitBreaker(as.scheduler,
+        maxFailures = 10,
+        callTimeout = 1 seconds,
+        resetTimeout = 1 seconds).
+        onOpen(println("circuit breaker opened!")).
+        onClose(println("circuit breaker closed!")).
+        onHalfOpen(println("circuit breaker half-open"))
+    Await.result(db ? SetRequest("key", "value"), 2 seconds)
+    val f = Future {
+      (1 to 100).toStream.foreach { _ =>
+        Thread.sleep(50)
+        // put timeline: 50,100,150
+        // exec timeline: 120,190,260
+        // the third diff: 260-150>100 -> askTimeout
+        breaker.withCircuitBreaker(db ? GetRequest("key"))
+          .map(x => "got it: " + x).recover {
+          case t ⇒ "error: " + t.toString
+        }.foreach(log.info)
+      }
+    }
+    f
+  }
 }
-
 case class GetRequest(str: String)
+
 case class SetRequest(str: String, str1: String)
+
 case class KeyNotFoundException(str: String) extends Exception
+

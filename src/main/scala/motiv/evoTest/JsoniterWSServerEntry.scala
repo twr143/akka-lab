@@ -1,7 +1,6 @@
 package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
@@ -12,7 +11,6 @@ import akka.stream.scaladsl.{Flow, Sink, Source}
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import scala.concurrent.Future
 import motiv.evoTest.Model._
-import scala.collection.mutable.ListBuffer
 import scala.io.StdIn
 import scala.util.control.NonFatal
 import akka.stream.contrib.Implicits.TimedFlowDsl
