@@ -49,10 +49,10 @@ object FSDbEntry extends StreamWrapperApp {
       new CircuitBreaker(as.scheduler,
         maxFailures = 10,
         callTimeout = 1 seconds,
-        resetTimeout = 1 seconds).
+        resetTimeout = 3 seconds).
         onOpen(println("circuit breaker opened!")).
         onClose(println("circuit breaker closed!")).
-        onHalfOpen(println("circuit breaker half-open"))
+        onHalfOpen(log.info("circuit breaker half-open"))
     Await.result(db ? SetRequest("key", "value"), 2 seconds)
     val f = Future {
       (1 to 100).toStream.foreach { _ =>
