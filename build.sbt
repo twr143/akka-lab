@@ -57,8 +57,6 @@ libraryDependencies ++= Seq(
 
 libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
 
-mainClass in(Compile, run) := Some("motiv.Boot")
-
 val sampleTask = taskKey[Int]("sample")
 sampleTask := {
   println(s"sbtVersion=${sbtVersion.value}")

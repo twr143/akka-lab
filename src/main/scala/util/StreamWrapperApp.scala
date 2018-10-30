@@ -12,8 +12,8 @@ trait StreamWrapperApp {
   def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any]
 
   def main(args: Array[String]): Unit = {
-    implicit val as = ActorSystem()
-    implicit val mat = ActorMaterializer()
+    implicit val as: ActorSystem = ActorSystem()
+    implicit val mat: ActorMaterializer = ActorMaterializer()
     try Await.result(body, 60.minutes)
     finally as.terminate()
   }

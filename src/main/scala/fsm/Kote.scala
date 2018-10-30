@@ -1,4 +1,4 @@
-package kote
+package fsm
 
 import akka.actor.{FSM, LoggingFSM}
 import akka.event.LoggingReceive
