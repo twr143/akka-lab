@@ -3,12 +3,10 @@ import akka.actor.{Actor, ActorSystem, Props, Status}
 import akka.event.Logging
 import akka.pattern.CircuitBreaker
 import akka.util.Timeout
-
 import scala.concurrent.duration._
 import akka.pattern._
 import akka.stream.ActorMaterializer
 import util.StreamWrapperApp
-
 import scala.collection.mutable.HashMap
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -53,21 +51,20 @@ object FSDbEntry extends StreamWrapperApp {
         onClose(println("circuit breaker closed!")).
         onHalfOpen(log.info("circuit breaker half-open"))
     Await.result(db ? SetRequest("key", "value"), 2 seconds)
-    val f = Future {
-      (1 to 100).toStream.foreach { _ =>
-        Thread.sleep(50)
-        // put timeline: 50,100,150
-        // exec timeline: 120,190,260
-        // the third diff: 260-150>100 -> askTimeout
-        breaker.withCircuitBreaker(db ? GetRequest("key"))
-          .map(x => "got it: " + x).recover {
-          case t ⇒ "error: " + t.toString
-        }.foreach(log.info)
-      }
+    (1 to 100).toStream.foreach { _ =>
+      Thread.sleep(50)
+      // put timeline: 50,100,150
+      // exec timeline: 120,190,260
+      // the third diff: 260-150>100 -> askTimeout
+      breaker.withCircuitBreaker(db ? GetRequest("key"))
+        .map(x => "got it: " + x).recover {
+        case t ⇒ "error: " + t.toString
+      }.foreach(log.info)
     }
-    f
+    Future()
   }
 }
+
 case class GetRequest(str: String)
 
 case class SetRequest(str: String, str1: String)
