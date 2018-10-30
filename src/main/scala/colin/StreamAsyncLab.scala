@@ -4,12 +4,12 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
 import util.StreamWrapperApp
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 object StreamAsyncLab extends StreamWrapperApp {
 
-  def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, mat: ActorMaterializer): Future[Done] = {
+  def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
     val start = System.currentTimeMillis()
     val res = f()
     res.onComplete {
@@ -22,38 +22,38 @@ object StreamAsyncLab extends StreamWrapperApp {
     res
   }
 
-  def spinSimple()(implicit mat: ActorMaterializer): Future[Done] =
+  def spinSimple()(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] =
     Source(1 to 1000)
       .map(spin)
       .map(spin)
       .runWith(Sink.ignore)
 
-  def spinSimpleAsync()(implicit mat: ActorMaterializer): Future[Done] =
+  def spinSimpleAsync()(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] =
     Source(1 to 1000)
       .map(spin)
       .async
       .map(spin)
       .runWith(Sink.ignore)
 
-  def spinMapAsync4()(implicit mat: ActorMaterializer): Future[Done] =
+  def spinMapAsync4()(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] =
     Source(1 to 1000)
       .mapAsync(4)(x => Future(spin(x)))
       .mapAsync(4)(x => Future(spin(x)))
       .runWith(Sink.ignore)
 
-  def spinMapAsync8()(implicit mat: ActorMaterializer): Future[Done] =
+  def spinMapAsync8()(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] =
     Source(1 to 1000)
       .mapAsync(8)(x => Future(spin(x)))
       .mapAsync(8)(x => Future(spin(x)))
       .runWith(Sink.ignore)
 
-  def spin(value: Int): Int = {
+  def spin(value: Int)(implicit ec: ExecutionContext): Int = {
     val start = System.currentTimeMillis()
     while ((System.currentTimeMillis() - start) < 2) {}
     value
   }
 
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     Future.sequence(List(timeCheckWrapper(spinSimple, "spinSimple"),
       timeCheckWrapper(spinSimpleAsync, "spinSimpleAsync"),
       timeCheckWrapper(spinMapAsync4, "spinMapAsync4"),

@@ -3,6 +3,7 @@
  */
 package johan
 import java.time.OffsetDateTime
+
 import akka.NotUsed
 import akka.pattern.Patterns.after
 import akka.actor.ActorSystem
@@ -12,8 +13,9 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.{ActorMaterializer, SourceShape}
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
 import util.StreamWrapperApp
+
 import scala.collection.immutable.Seq
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
@@ -28,8 +30,7 @@ import scala.concurrent.duration._
   */
 object SocketStream extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
-    implicit val ec = as.dispatcher
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val measurementsFlow =
       Flow[Message].flatMapConcat { message =>
         // handles both strict and streamed ws messages by folding

@@ -6,12 +6,12 @@ import util.StreamWrapperApp
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 /**
   * Created by Ilya Volynin on 24.09.2018 at 11:20.
   */
 object ColinE1 extends StreamWrapperApp{
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     Source(1 to 100)
       .groupBy(4, _ % 4)
       .map { a =>

@@ -6,11 +6,10 @@ import akka.stream.scaladsl.{Sink, Source}
 import util.StreamWrapperApp
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Random, Success}
-import scala.concurrent.ExecutionContext.Implicits.global
 object FMapConcatMerge extends StreamWrapperApp {
   val random = new Random()
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val strings = List(
       """hello
          world
@@ -30,7 +29,7 @@ object FMapConcatMerge extends StreamWrapperApp {
     } yield r
   }
 
-  def mapConcat(strings: List[String])(implicit mat: ActorMaterializer): Future[Done] = {
+  def mapConcat(strings: List[String])(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
     for {
       _ <- Future {
         println("started mc")
@@ -44,7 +43,7 @@ object FMapConcatMerge extends StreamWrapperApp {
     } yield f
   }
 
-  def fMapConcat(strings: List[String])(implicit mat: ActorMaterializer): Future[Done] = {
+  def fMapConcat(strings: List[String])(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
     for {
       _ <- Future {
         println("started fmc")
@@ -58,7 +57,7 @@ object FMapConcatMerge extends StreamWrapperApp {
     } yield f
   }
 
-  def fMapMerge(strings: List[String])(implicit mat: ActorMaterializer): Future[Done] = {
+  def fMapMerge(strings: List[String])(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
     for {
       _ <- Future {
         println("started fmm")

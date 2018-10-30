@@ -12,7 +12,8 @@ import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import util.StreamWrapperApp
-import scala.concurrent.{ExecutionContextExecutor, Future, Promise}
+
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
@@ -21,7 +22,7 @@ import scala.concurrent.duration._
   */
 object GetUrlStream extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     implicit val ec: ExecutionContextExecutor = as.dispatcher
     val promise = Promise[Unit]()
     val numbers2 =

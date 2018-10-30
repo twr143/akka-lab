@@ -6,9 +6,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source}
 import akka.util.ByteString
 import util.StreamWrapperApp
-import scala.concurrent.ExecutionContext.Implicits.global
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Created by Ilya Volynin on 16.06.2018 at 14:35.
@@ -18,7 +17,7 @@ object readFile2 extends StreamWrapperApp {
   /*
   * counts all the lines in provided files
    */
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val lines = Framing.delimiter(
       ByteString("\n"), maximumFrameLength = 1024).map(bs => bs.utf8String)
     // given as stream of Paths we read those files and count the number of lines

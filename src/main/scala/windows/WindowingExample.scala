@@ -1,12 +1,14 @@
 package windows
 import java.time._
 import java.util.TimeZone
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import util.StreamWrapperApp
+
 import scala.collection.mutable
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -17,7 +19,7 @@ import scala.util.Random
   */
 object WindowingExample extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val random = new Random()
     val f = Source
       .tick(0.seconds, 1.second, "") .take(20)

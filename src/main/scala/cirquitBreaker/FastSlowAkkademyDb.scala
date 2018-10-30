@@ -10,7 +10,7 @@ import akka.stream.ActorMaterializer
 import util.StreamWrapperApp
 
 import scala.collection.mutable.HashMap
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 class FastSlowAkkademyDb extends Actor {
 
@@ -40,8 +40,7 @@ class FastSlowAkkademyDb extends Actor {
 
 object FSDbEntry extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer): Future[Any] = {
-    implicit val ec: ExecutionContextExecutor = as.dispatcher
+  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     implicit val timeout: Timeout = Timeout(100 millis)
     val db = as.actorOf(Props[FastSlowAkkademyDb])
     val log = Logging(as, db)
