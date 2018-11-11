@@ -1,10 +1,10 @@
-package motiv.evoTest
+package motiv.evoTest.server
+
 /**
   * Created by Ilya Volynin on 28.10.2018 at 13:51.
   */
 import akka.actor.{Actor, ActorRef}
 import motiv.evoTest.Model.Outgoing
-import motiv.evoTest.RouterManager.Notification
 
 object RequestRouter {
 

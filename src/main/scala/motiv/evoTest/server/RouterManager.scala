@@ -1,10 +1,11 @@
-package motiv.evoTest
+package motiv.evoTest.server
+
 /**
   * Created by Ilya Volynin on 28.10.2018 at 13:56.
   */
 import akka.actor._
 import motiv.evoTest.Model.Outgoing
-import motiv.evoTest.RequestRouter.IncomingMessage
+import motiv.evoTest.server.RequestRouter.IncomingMessage
 
 object RouterManager {
 

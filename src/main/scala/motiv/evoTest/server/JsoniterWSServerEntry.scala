@@ -1,23 +1,26 @@
-package motiv.evoTest
+package motiv.evoTest.server
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+
 import akka.NotUsed
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.stream.{ActorAttributes, ActorMaterializer, OverflowStrategy, Supervision}
+import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import com.github.plokhotnyuk.jsoniter_scala.core._
+import akka.stream.{ActorAttributes, ActorMaterializer, OverflowStrategy, Supervision}
+import com.github.plokhotnyuk.jsoniter_scala.core.{JsonParseException, readFromArray, writeToArray}
+
 import scala.concurrent.Future
-import motiv.evoTest.Model._
+import scala.concurrent.duration.FiniteDuration
 import scala.io.StdIn
-import scala.util.control.NonFatal
-import akka.stream.contrib.Implicits.TimedFlowDsl
-import motiv.evoTest.RequestRouter._
-import motiv.evoTest.RouterManager.Notification
-import scala.concurrent.duration._
 import scala.util.Random
+import scala.util.control.NonFatal
+import motiv.evoTest.Model._
+import motiv.evoTest.server.RequestRouter._
+import motiv.evoTest.server.RouterManager._
+import akka.stream.contrib.Implicits.TimedFlowDsl
+import scala.concurrent.duration._
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:51.
@@ -33,8 +36,6 @@ object JsoniterWSServerEntry extends App {
   implicit val materializer = ActorMaterializer()
 
   implicit val ec = system.dispatcher
-
-  implicit def convertArrayOfBytesToString(bytes: Array[Byte]): String = new String(bytes, StandardCharsets.UTF_8)
 
   var tables: List[Table] = List(Table(1, "table - James Bond", 7), Table(2, "table - Mission Impossible", 4))
 

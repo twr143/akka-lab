@@ -1,16 +1,19 @@
 package motiv.evoTest
+import java.nio.charset.StandardCharsets
 import java.util.UUID
+
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
-import com.github.plokhotnyuk.jsoniter_scala.macros.{
-  CodecMakerConfig,
-  JsonCodecMaker
-}
-import scala.collection.mutable.{ListBuffer, MutableList}
+import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
+
+import scala.collection.mutable.ListBuffer
 
 /**
   * Created by Ilya Volynin on 02.10.2018 at 16:53.
   */
 object Model {
+
+  implicit def convertArrayOfBytesToString(bytes: Array[Byte]): String = new String(bytes, StandardCharsets.UTF_8)
+
 
   case class Table(id: Int, name: String, participants: Int)
 
