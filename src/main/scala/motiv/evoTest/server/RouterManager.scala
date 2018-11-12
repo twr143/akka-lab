@@ -11,7 +11,7 @@ object RouterManager {
 
   case object Join
 
-  case class Notification(sender: ActorRef, subscribers: Set[ActorRef], message: Outgoing)
+  case class Notification(subscribers: Set[ActorRef], message: Outgoing)
 
 }
 
@@ -25,6 +25,6 @@ class RouterManager extends Actor {
       context.watch(sender())
     case Terminated(user) =>
     case msg: Notification =>
-      msg.subscribers.filter(_ != msg.sender).foreach(_ ! IncomingMessage(msg.message))
+      msg.subscribers.foreach(_ ! IncomingMessage(msg.message))
   }
 }

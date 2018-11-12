@@ -17,7 +17,7 @@ object readFile2 extends StreamWrapperApp {
   /*
   * counts all the lines in provided files
    */
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val lines = Framing.delimiter(
       ByteString("\n"), maximumFrameLength = 1024).map(bs => bs.utf8String)
     // given as stream of Paths we read those files and count the number of lines

@@ -22,7 +22,7 @@ import scala.concurrent.duration._
   */
 object GetUrlStream extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     implicit val ec: ExecutionContextExecutor = as.dispatcher
     val promise = Promise[Unit]()
     val numbers2 =

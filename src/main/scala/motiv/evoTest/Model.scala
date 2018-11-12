@@ -12,9 +12,6 @@ import scala.collection.mutable.ListBuffer
   */
 object Model {
 
-  implicit def convertArrayOfBytesToString(bytes: Array[Byte]): String = new String(bytes, StandardCharsets.UTF_8)
-
-
   case class Table(id: Int, name: String, participants: Int)
 
   sealed trait Incoming

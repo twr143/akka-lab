@@ -53,7 +53,7 @@ object StreamAsyncLab extends StreamWrapperApp {
     value
   }
 
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     Future.sequence(List(timeCheckWrapper(spinSimple, "spinSimple"),
       timeCheckWrapper(spinSimpleAsync, "spinSimpleAsync"),
       timeCheckWrapper(spinMapAsync4, "spinMapAsync4"),

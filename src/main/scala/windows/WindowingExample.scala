@@ -19,7 +19,7 @@ import scala.util.Random
   */
 object WindowingExample extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val random = new Random()
     val f = Source
       .tick(0.seconds, 1.second, "") .take(20)

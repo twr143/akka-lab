@@ -11,7 +11,7 @@ import scala.util.Random
   * Created by Ilya Volynin on 23.09.2018 at 18:16.
   */
 object groupByEntry1 extends StreamWrapperApp {
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     Source
       .tick(0 second, 50 millis, "").take(60).
       map {

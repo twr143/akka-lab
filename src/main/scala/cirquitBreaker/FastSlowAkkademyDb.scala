@@ -38,7 +38,7 @@ class FastSlowAkkademyDb extends Actor {
 
 object FSDbEntry extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     implicit val timeout: Timeout = Timeout(100 millis)
     val db = as.actorOf(Props[FastSlowAkkademyDb])
     val log = Logging(as, db)

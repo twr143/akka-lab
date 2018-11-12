@@ -30,7 +30,7 @@ import scala.concurrent.duration._
   */
 object SocketStream extends StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val measurementsFlow =
       Flow[Message].flatMapConcat { message =>
         // handles both strict and streamed ws messages by folding

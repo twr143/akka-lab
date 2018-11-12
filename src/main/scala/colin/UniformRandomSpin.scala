@@ -15,7 +15,7 @@ object UniformRandomSpin extends StreamWrapperApp {
 
   val random = new Random()
 
-  override def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     Future.sequence(List(timeCheckWrapper(parallelMapAsyncAsync, "uniformRandomSpin"),
       timeCheckWrapper(parallelMapAsyncAsyncUnordered, "parallelMapAsyncAsyncUnordered"),
       timeCheckWrapper(parallelNonBlockingCall, "parallelNonBlockingCall")))

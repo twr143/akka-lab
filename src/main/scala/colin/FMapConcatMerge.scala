@@ -9,7 +9,7 @@ import scala.util.{Failure, Random, Success}
 object FMapConcatMerge extends StreamWrapperApp {
   val random = new Random()
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val strings = List(
       """hello
          world

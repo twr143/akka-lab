@@ -10,13 +10,13 @@ import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Futu
   */
 trait StreamWrapperApp {
 
-  def body()(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any]
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any]
 
   def main(args: Array[String]): Unit = {
     implicit val as: ActorSystem = ActorSystem()
     implicit val mat: ActorMaterializer = ActorMaterializer()
     implicit val ec: ExecutionContext = as.dispatcher
-    try Await.result(body, 60.minutes)
+    try Await.result(body(args), 60.minutes)
     finally as.terminate()
   }
 }
