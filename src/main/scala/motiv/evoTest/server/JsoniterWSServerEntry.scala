@@ -74,45 +74,7 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
           .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
         .scan(0, Ping(0): Incoming)((t, out) => (t._1 + 1, out))
         .timedIntervalBetween(_._1 % countNum == 0, timeCheck).map(_._2)
-        .map {
-          case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
-            adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
-            LoginSuccessful(usertype = "admin", reqId)
-          case Login(login, password) if login == "user" && password == "user" ⇒
-            LoginSuccessful(usertype = "user", reqId)
-          case Login(login, _) ⇒ LoginFailed(login)
-          case Ping(seq) => Pong(seq)
-          case SubscribeTables =>
-            subscribers += routerActor
-            TableList(tables.take(100))
-          case UnsubscribeTables =>
-            subscribers -= routerActor
-            UnsubscribedFromTables
-          case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
-            tables = insert(tables, after_i, t)
-            val added = TableAdded(after_i, t)
-            sendNotification(routerManager, routerActor, added)
-            added
-          case UpdateTable(t) if adminLoggedInMap(reqId) =>
-            val i = findTableIndex(tables, t)
-            if (i > -1) {
-              tables = updateTableList(tables, t, i)
-              val updated = TableUpdated(t)
-              sendNotification(routerManager, routerActor, updated)
-              updated
-            } else
-              UpdateFailed(t)
-          case RemoveTable(id) if adminLoggedInMap(reqId) =>
-            val i = findTableIndex(tables, id)
-            if (i > -1) {
-              tables = tables.filterNot(_.id == id)
-              val removed = TableRemoved(id)
-              sendNotification(routerManager, routerActor, removed)
-              removed
-            } else
-              RemoveFailed(id)
-          case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
-        }
+        .map(businessLogic(reqId, routerActor, routerManager))
         .map(IncomingMessage)
         .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
         .withAttributes(ActorAttributes.supervisionStrategy(decider(routerActor)))
@@ -168,5 +130,45 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
     subscribers = subscribers -- common
     subscribersToRemove = subscribersToRemove -- common
     routerManager ! Notification(subscribers - routerActor, message)
+  }
+
+  def businessLogic(reqId: UUID, routerActor: ActorRef, routerManager: ActorRef): PartialFunction[Incoming, Outgoing] = {
+    case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
+      adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
+      LoginSuccessful(usertype = "admin", reqId)
+    case Login(login, password) if login == "user" && password == "user" ⇒
+      LoginSuccessful(usertype = "user", reqId)
+    case Login(login, _) ⇒ LoginFailed(login)
+    case Ping(seq) => Pong(seq)
+    case SubscribeTables =>
+      subscribers += routerActor
+      TableList(tables.take(100))
+    case UnsubscribeTables =>
+      subscribers -= routerActor
+      UnsubscribedFromTables
+    case AddTable(t, after_i) if adminLoggedInMap(reqId) =>
+      tables = insert(tables, after_i, t)
+      val added = TableAdded(after_i, t)
+      sendNotification(routerManager, routerActor, added)
+      added
+    case UpdateTable(t) if adminLoggedInMap(reqId) =>
+      val i = findTableIndex(tables, t)
+      if (i > -1) {
+        tables = updateTableList(tables, t, i)
+        val updated = TableUpdated(t)
+        sendNotification(routerManager, routerActor, updated)
+        updated
+      } else
+        UpdateFailed(t)
+    case RemoveTable(id) if adminLoggedInMap(reqId) =>
+      val i = findTableIndex(tables, id)
+      if (i > -1) {
+        tables = tables.filterNot(_.id == id)
+        val removed = TableRemoved(id)
+        sendNotification(routerManager, routerActor, removed)
+        removed
+      } else
+        RemoveFailed(id)
+    case _: AddTable | _: UpdateTable | _: RemoveTable => NotAuthorized
   }
 }
