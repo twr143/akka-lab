@@ -96,7 +96,7 @@ object BackOffTest extends StreamWrapperApp {
           .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
           .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "complete";ken})))
 
-    // unfortunatelly the stream wouldn't start :(
+    // unfortunatelly the stream wouldn't start (since the ken actor isn't alive) :(
       //.map(ken => StreamAfterRecovery(ken))
     completion.future
   }
