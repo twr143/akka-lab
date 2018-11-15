@@ -8,13 +8,16 @@ import akka.http.scaladsl.Http
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl._
 import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.ws._
+import akka.http.scaladsl.unmarshalling.Unmarshal
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromArray, writeToArray}
 import motiv.evoTest.Model._
 import util.StreamWrapperApp
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import motiv.evoTest.Util._
+import scala.util.Success
 
 // sample run: "runMain motiv.evoTest.client.WSClientFlowEntry 21 40"
 object WSClientFlowEntry extends StreamWrapperApp {
@@ -37,18 +40,25 @@ object WSClientFlowEntry extends StreamWrapperApp {
     val newTablesSecondHalf = Source.fromIterator(() => iterSecondHalf).map(i => AddTable(Table(i + 2, "table - Foo Fighters " + i * i, 4 * i), i + 1))
     val subscribeSource = Source.single(SubscribeTables)
     val unSubscribeSource = Source.single(UnsubscribeTables)
+    val maybeSource = Source.maybe[Incoming]
     val aggSource = Source.combine[Incoming, Incoming](loginSource,
-      subscribeSource, newTablesFirstHalf, 
-      unSubscribeSource, newTablesSecondHalf)(Concat(_)).map(i => TextMessage(writeToArray[Incoming](i))
+      subscribeSource, newTablesFirstHalf,
+      unSubscribeSource, newTablesSecondHalf
+
+      /*,maybeSource*/
+      // if we wish infinite stream
+    )(Concat(_)).map(i => TextMessage(writeToArray[Incoming](i))
     )
     //
-    val webSocketFlow = Http().webSocketClientFlow(WebSocketRequest("ws://localhost:9000/ws_api"))
+    val webSocketFlow = Http().webSocketClientFlow(
+      WebSocketRequest("ws://localhost:9000/ws_api",
+        scala.collection.immutable.Seq(Authorization(BasicHttpCredentials("ilya", "voly")))))
     //
     //
     //
     //
     val (upgradeResponse, closed) =
-    aggSource
+    aggSource //.concatMat(Source.maybe[Incoming])(Keep.right)
       //I've added throttle to extend time of execution to allow this client receiving notifications
       //from other clients running in parallel
       // The client closes once the source has been completed
@@ -63,7 +73,12 @@ object WSClientFlowEntry extends StreamWrapperApp {
       if (upgrade.response.status == StatusCodes.SwitchingProtocols) {
         Future.successful(Done)
       } else {
-        throw new RuntimeException(s"Connection failed: ${upgrade.response.status}")
+        val f = Unmarshal(upgrade.response.entity).to[String]
+        f.onComplete {
+          case Success(s) =>
+            throw new RuntimeException(s"Connection failed: ${upgrade.response.status} $s")
+        }
+        f
       }
     }
 

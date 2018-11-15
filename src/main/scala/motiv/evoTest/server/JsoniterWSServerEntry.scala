@@ -1,14 +1,17 @@
 package motiv.evoTest.server
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+
 import akka.{Done, NotUsed}
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
-import akka.http.scaladsl.model.{HttpMethods, HttpRequest, HttpResponse, Uri}
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream.{ActorAttributes, ActorMaterializer, OverflowStrategy, Supervision}
 import com.github.plokhotnyuk.jsoniter_scala.core.{JsonParseException, readFromArray, writeToArray}
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.io.StdIn
@@ -21,6 +24,8 @@ import motiv.evoTest.server.RouterManager._
 import akka.stream.contrib.Implicits.TimedFlowDsl
 import motiv.evoTest.server.JsoniterWSServerEntry.subscribers
 import util.StreamWrapperApp
+
+import scala.collection.immutable
 import scala.concurrent.duration._
 
 /**
@@ -90,12 +95,23 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
     }
 
     val route: HttpRequest => HttpResponse = {
-      case req@HttpRequest(HttpMethods.GET, Uri.Path("/ws_api"), _, _, _) =>
+      case req@HttpRequest(HttpMethods.GET, Uri.Path("/ws_api"), headers: immutable.Seq[HttpHeader], _, _) =>
         req.header[UpgradeToWebSocket] match {
           case Some(upgrade) =>
-            val reqId = UUID.randomUUID()
-            adminLoggedInMap += (reqId -> false)
-            upgrade.handleMessages(flow(reqId))
+            req.header[Authorization] match {
+              case Some(authorization) =>
+                authorization.credentials match {
+                  case BasicHttpCredentials(u, p) if "ilya"==u && "voly" == p =>
+                    val reqId = UUID.randomUUID()
+                    adminLoggedInMap += (reqId -> false)
+                    upgrade.handleMessages(flow(reqId))
+                  case BasicHttpCredentials(u, p) =>
+                    HttpResponse(403, entity = "Wrong Credentials!")
+                  case _ =>
+                    HttpResponse(403, entity = "Please provide basic credentials!")
+                }
+              case None => HttpResponse(403, entity = "Authorization header required!")
+            }
           case None => HttpResponse(400, entity = "Not a valid websocket request!")
         }
       case r: HttpRequest =>
