@@ -2,7 +2,6 @@ package docs
 import akka.actor.{ActorSystem, Cancellable}
 import akka.stream.{ActorMaterializer, ClosedShape, FlowShape, ThrottleMode}
 import akka.stream.scaladsl._
-import streaming.BackPressure1.system
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
