@@ -72,7 +72,7 @@ object BackOffTest extends StreamWrapperApp {
     val kennyProps = Kenny.props(completion)
     val supervisor = BackoffSupervisor.props(
       Backoff.onFailure(
-        kennyProps, "Kenny", 3.seconds,
+        kennyProps, "Kenny", 2.seconds,
         maxBackoff = 7.seconds,
         randomFactor = 0.2 // adds 20% "noise" to vary the intervals slightly
       ) // the child must send BackoffSupervisor.Reset to its parent
@@ -88,7 +88,6 @@ object BackOffTest extends StreamWrapperApp {
     val mainSup = as.actorOf(Props[MainSup], name = "MainSuper")
     (mainSup ? supervisor).mapTo[ActorRef].map { ken => ken ! "exc"; ken }
       .flatMap(ken => after(1000.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
           .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
           .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
           .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
