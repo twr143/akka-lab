@@ -1,12 +1,15 @@
 package streaming.graphs
 import java.io.File
-
+import java.nio.file.OpenOption
+import java.nio.file.StandardOpenOption.{CREATE, TRUNCATE_EXISTING, WRITE}
 import akka.actor.ActorSystem
 import akka.dispatch.forkjoin.ThreadLocalRandom
 import akka.stream.scaladsl.{Broadcast, FileIO, Flow, GraphDSL, RunnableGraph, Sink, Source}
-import akka.stream.{ActorMaterializer, ClosedShape}
+import akka.stream.{ActorMaterializer, ClosedShape, ThrottleMode}
 import akka.util.ByteString
-
+import util.StreamWrapperApp
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
 /**
@@ -15,37 +18,27 @@ import scala.util.{Failure, Success}
 /*
 created by Ilya Volynin at 18.12.17
 */
-object FileIOGraphDSL extends App {
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+object FileIOGraphDSL extends StreamWrapperApp {
 
-  import system.dispatcher
-
-  val source = Source.fromIterator { () => Iterator.continually(ThreadLocalRandom.current().nextInt(500000)) }
-  val fileSink = FileIO.toFile(new File("random.txt"))
-
-  val slowSink = Flow[Int].map(i => {
-    Thread.sleep(1000)
-    ByteString(i.toString + "\n")
-  }).toMat(fileSink)((_, bytesWritten) => bytesWritten)
-
-  val consoleSink = Sink.foreach[Int](println)
-
-  val graph = GraphDSL.create(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
-    (slow, console) =>
-      import GraphDSL.Implicits._
-      val broadcast = builder.add(Broadcast[Int](2))
-      source ~> broadcast ~> slow
-      broadcast ~> console
-      ClosedShape
-  }
-
-  val materialized = RunnableGraph.fromGraph(graph).run()
-  materialized.onComplete {
-    case Success(_) =>
-      system.terminate()
-    case Failure(e) =>
-      println(s"Failure: ${e.getMessage}")
-      system.terminate()
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+    val source = Source
+      .fromIterator { () => Iterator.continually(ThreadLocalRandom.current().nextInt(500000)) }
+      .take(20)
+    val fileSink = FileIO.toPath(new File("random.txt").toPath, options = Set(WRITE, TRUNCATE_EXISTING, CREATE))
+    val slowSink =
+      Flow[Int]
+        .throttle(1, 500.millis, 1, ThrottleMode.Shaping)
+        .map(i => ByteString(i.toString + "\n"))
+        .toMat(fileSink)((_, bytesWritten) => bytesWritten)
+    val consoleSink = Sink.foreach[Int](println)
+    val graph = GraphDSL.create(slowSink, consoleSink)((slow, _) => slow) { implicit builder =>
+      (slow, console) =>
+        import GraphDSL.Implicits._
+        val broadcast = builder.add(Broadcast[Int](2))
+        source ~> broadcast ~> slow
+        broadcast ~> console
+        ClosedShape
+    }
+    RunnableGraph.fromGraph(graph).run()
   }
 }
