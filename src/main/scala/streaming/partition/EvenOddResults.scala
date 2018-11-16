@@ -16,7 +16,16 @@ object EvenOddResults extends StreamWrapperApp {
     val numbers = Source[Int](List(1, 2, 3, 4, 5, 6))
     val errCheck = Flow[Int].
       fold(ListBuffer[Int](), ListBuffer[Int]())((lists, number) =>
-        if (number % 2 == 0) (lists._1 :+ number, lists._2) else (lists._1, lists._2 :+ number))
+        if (number % 2 == 0)
+          ( {
+            lists._1 += number
+            lists._1
+          }, lists._2)
+        else
+          (lists._1, {
+            lists._2 += number
+            lists._2
+          }))
     numbers.via(errCheck).runWith(Sink.foreach(s => alertSourceCompleted(s._1, s._2)))
   }
 

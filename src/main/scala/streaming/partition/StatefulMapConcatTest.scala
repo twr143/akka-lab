@@ -2,29 +2,40 @@ package streaming.partition
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
+import util.StreamWrapperApp
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random._
 import scala.math.abs
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Success
+
 /**
   * Created by Ilya Volynin on 15.06.2018 at 18:38.
   */
-object StatefulMapConcatTest extends App {
-  implicit val system = ActorSystem()
-  implicit val materializer = ActorMaterializer()
+object StatefulMapConcatTest extends StreamWrapperApp {
+
   //encapsulating your input
   case class IdentValue(id: Int, value: String)
+
   //some random generated input
-  val identValues = List.fill(5)(IdentValue(abs(nextInt()) % 5, "valueHere"))
-  var ids = Set.empty[Int]
-  val stateFlow = Flow[IdentValue].statefulMapConcat { () =>
-    //state with already processed ids
-    println("initial block in smc")
-    identValue =>
-      ids = ids + identValue.id
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+    val identValues1 = List.fill(5)(IdentValue(abs(nextInt()) % 5, "valueHere1"))
+    val identValues2 = List.fill(5)(IdentValue(abs(nextInt()) % 5, "valueHere2"))
+    var ids = Set.empty[Int]
+    val stateFlow = Flow[IdentValue].statefulMapConcat { () => // toggle with mapConcat
+      //state with already processed ids
+      println("initial block in smc") // printed twice in stateful version, once in mapConcat
+      identValue =>
+        ids = ids + identValue.id
         Set(identValue)
+    }
+    val f = Source(identValues1)
+      .via(stateFlow)
+      .runWith(Sink.seq)
+    f.onComplete { case Success(identValue) => println(identValue); println(s"ids=$ids") }
+    val g = Source(identValues2)
+      .via(stateFlow)
+      .runWith(Sink.seq)
+    g.onComplete { case Success(identValue) => println(identValue); println(s"ids=$ids") }
+    Future.sequence(List(f, g))
   }
-  Source(identValues)
-    .via(stateFlow)
-    .runWith(Sink.seq)
-    .onSuccess { case identValue => println(identValue); println(ids); system.terminate() }
 }
