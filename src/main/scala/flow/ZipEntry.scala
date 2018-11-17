@@ -13,49 +13,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package lyas
-
+package flow
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
-
+import util.StreamWrapperApp
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 /**
   * Prints "Learn you Akka Streams for great good!" in fancy ways.
   */
-object LyasEntry {
+object ZipEntry extends StreamWrapperApp {
 
-  def main(args: Array[String]): Unit = {
-    println("-- Main started --")
-    implicit val system = ActorSystem()
-    implicit val mat    = ActorMaterializer()
-    import system.dispatcher
-
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val sevenLines =
-      Source
-        .repeat("Learn you Akka Streams for great good!")
+      Source.fromIterator(() => Iterator.from(0))
         .take(7)
-
     val toCharsIndented =
-      Flow[String]
+      Flow[Int]
         .zip(Source.fromIterator(() => Iterator.from(0)))
         .mapConcat {
           case (s, n) =>
             val i = " " * n
             f"$i$s%n"
         }
-
     val printThrottled =
       Flow[Char]
-        .throttle(42, 1.second, 1, ThrottleMode.Shaping)
+        .throttle(42, 1.second)
         .toMat(Sink.foreach(print))(Keep.right)
-
     sevenLines
       .via(toCharsIndented)
       .toMat(printThrottled)(Keep.right)
       .run()
-      .onComplete(_ => system.terminate())
   }
 }

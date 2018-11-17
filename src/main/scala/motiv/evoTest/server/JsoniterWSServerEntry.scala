@@ -1,7 +1,6 @@
 package motiv.evoTest.server
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
 import akka.{Done, NotUsed}
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.http.scaladsl.Http
@@ -9,9 +8,8 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.stream.scaladsl.{Flow, Sink, Source}
-import akka.stream.{ActorAttributes, ActorMaterializer, OverflowStrategy, Supervision}
+import akka.stream._
 import com.github.plokhotnyuk.jsoniter_scala.core.{JsonParseException, readFromArray, writeToArray}
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.io.StdIn
@@ -24,7 +22,6 @@ import motiv.evoTest.server.RouterManager._
 import akka.stream.contrib.Implicits.TimedFlowDsl
 import motiv.evoTest.server.JsoniterWSServerEntry.subscribers
 import util.StreamWrapperApp
-
 import scala.collection.immutable
 import scala.concurrent.duration._
 
@@ -44,6 +41,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
   var subscribers = Set[ActorRef]()
 
   var subscribersToRemove = Set[ActorRef]()
+
+  var sharedKilSwitches = Set[SharedKillSwitch]()
 
   val countNum = 1000
 
@@ -65,6 +64,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
 
     def flow(reqId: UUID): Flow[Message, Message, Any] = {
       val routerActor = as.actorOf(Props(new RequestRouter(routerManager)), name = s"route-$reqId")
+      val sharedKS = KillSwitches.shared(s"kill-switch-$reqId")
+      sharedKilSwitches += sharedKS
       val incoming = Flow[Message]
         .watchTermination()((_, futDone: Future[Done]) =>
           futDone.onComplete {
@@ -77,8 +78,12 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
         }
         .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
           .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
-        .scan(0, Ping(0): Incoming)((t, out) => (t._1 + 1, out))
-        .timedIntervalBetween(_._1 % countNum == 0, timeCheck).map(_._2)
+        //        .scan(Ping(0): Incoming, 0)((t, out) => (out, t._2 + 1)) //1
+        .zipWith(Source.fromIterator(() => Iterator.from(1))) {//2  1 equiv. 2    2 is faster
+        (incoming, counter) => (incoming, counter)
+      }
+//        .zipWithIndex    //3   1 = 2 = 3      2 is the fastest
+        .timedIntervalBetween(_._2 % countNum == 0, timeCheck).map(_._1)
         .map(businessLogic(reqId, routerActor, routerManager))
         .map(IncomingMessage)
         .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
@@ -98,20 +103,23 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
       case req@HttpRequest(HttpMethods.GET, Uri.Path("/ws_api"), headers: immutable.Seq[HttpHeader], _, _) =>
         req.header[UpgradeToWebSocket] match {
           case Some(upgrade) =>
-            req.header[Authorization] match {
-              case Some(authorization) =>
-                authorization.credentials match {
-                  case BasicHttpCredentials(u, p) if "ilya"==u && "voly" == p =>
-                    val reqId = UUID.randomUUID()
-                    adminLoggedInMap += (reqId -> false)
-                    upgrade.handleMessages(flow(reqId))
-                  case BasicHttpCredentials(u, p) =>
-                    HttpResponse(403, entity = "Wrong Credentials!")
-                  case _ =>
-                    HttpResponse(403, entity = "Please provide basic credentials!")
-                }
-              case None => HttpResponse(403, entity = "Authorization header required!")
-            }
+            val reqId = UUID.randomUUID()
+            adminLoggedInMap += (reqId -> false)
+            upgrade.handleMessages(flow(reqId))
+          //            req.header[Authorization] match {
+          //              case Some(authorization) =>
+          //                authorization.credentials match {
+          //                  case BasicHttpCredentials(u, p) if "ilya"==u && "voly" == p =>
+          //                    val reqId = UUID.randomUUID()
+          //                    adminLoggedInMap += (reqId -> false)
+          //                    upgrade.handleMessages(flow(reqId))
+          //                  case BasicHttpCredentials(u, p) =>
+          //                    HttpResponse(403, entity = "Wrong Credentials!")
+          //                  case _ =>
+          //                    HttpResponse(403, entity = "Please provide basic credentials!")
+          //                }
+          //              case None => HttpResponse(403, entity = "Authorization header required!")
+          //            }
           case None => HttpResponse(400, entity = "Not a valid websocket request!")
         }
       case r: HttpRequest =>
@@ -121,7 +129,11 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
     val bindingFuture = Http().bindAndHandleSync(route, "localhost", 9000)
     println(s"Server online at http://localhost:9000/\nPress RETURN to stop...")
     StdIn.readLine()
-    bindingFuture.flatMap(_.unbind())
+    bindingFuture.flatMap {
+      routerManager ! PoisonPill
+      sharedKilSwitches.foreach(_.shutdown())
+      _.unbind()
+    }
   }
 
   def insert(list: List[Table], after_i: Int, value: Table) = {

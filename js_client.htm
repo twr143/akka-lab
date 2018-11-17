@@ -14,7 +14,7 @@ var ws = new WebSocket("ws://127.0.0.1:9000/ws_api");
         ws.send(JSON.stringify({
 "$type": "subscribe_tables"
 }));
-	for (i=0;i<20000;i++)
+	for (i=0;i<10000;i++)
     ws.send(JSON.stringify({
     
   "$type": "add_table",
