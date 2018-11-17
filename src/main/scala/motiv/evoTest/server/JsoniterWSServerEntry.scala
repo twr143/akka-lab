@@ -95,8 +95,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
             routerActor ! Connected(outActor)
             NotUsed
           }.keepAlive(10.seconds, () => OutgoingMessage(Pong(Random.nextInt(100))))
-          .mapAsync(CORE_COUNT * 2 - 1)(outgoing ⇒ Future(TextMessage(writeToArray[Outgoing](outgoing.obj))))
-      Flow.fromSinkAndSource(incoming, outgoing)
+          .mapAsync(CORE_COUNT * 2 - 1)(o => Future.successful(o.obj).map(writeToArray[Outgoing](_)).map(TextMessage(_)))
+      Flow.fromSinkAndSource(incoming, outgoing).via(sharedKS.flow)
     }
 
     val route: HttpRequest => HttpResponse = {
