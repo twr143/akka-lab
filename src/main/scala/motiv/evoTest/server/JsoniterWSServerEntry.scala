@@ -42,7 +42,7 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
 
   var subscribersToRemove = Set[ActorRef]()
 
-  var sharedKilSwitches = Set[SharedKillSwitch]()
+//  var sharedKilSwitches = Set[SharedKillSwitch]()
 
   val countNum = 1000
 
@@ -55,17 +55,16 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
       router ! IncomingMessage(InvalidBody(e.getMessage))
       Supervision.Resume
     case NonFatal(e) ⇒
-      router ! IncomingMessage(GeneralException(e.getMessage))
+      router ! IncomingMessage(GeneralException(e.getMessage + e.printStackTrace()))
       Supervision.Stop
   }
 
   override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
     val routerManager = as.actorOf(Props[RouterManager], "routerManager")
+    val sharedKS = KillSwitches.shared(s"kill-switch")
 
     def flow(reqId: UUID): Flow[Message, Message, Any] = {
       val routerActor = as.actorOf(Props(new RequestRouter(routerManager)), name = s"route-$reqId")
-      val sharedKS = KillSwitches.shared(s"kill-switch-$reqId")
-      sharedKilSwitches += sharedKS
       val incoming = Flow[Message]
         .watchTermination()((_, futDone: Future[Done]) =>
           futDone.onComplete {
@@ -79,10 +78,11 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
         .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
           .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
         //        .scan(Ping(0): Incoming, 0)((t, out) => (out, t._2 + 1)) //1
-        .zipWith(Source.fromIterator(() => Iterator.from(0))) {//2  1 equiv. 2    2 is faster
+        .zipWith(Source.fromIterator(() => Iterator.from(0))) {
+        //2  1 equiv. 2    2 is faster
         (incoming, counter) => (incoming, counter)
       }
-//        .zipWithIndex    //3   1 = 2 = 3      2 is the fastest  
+        //        .zipWithIndex    //3   1 = 2 = 3      2 is the fastest
         .timedIntervalBetween(_._2 % countNum == 0, timeCheck).map(_._1)
         .map(businessLogic(reqId, routerActor, routerManager))
         .map(IncomingMessage)
@@ -131,7 +131,7 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
     StdIn.readLine()
     bindingFuture.flatMap {
       routerManager ! PoisonPill
-      sharedKilSwitches.foreach(_.shutdown())
+      sharedKS.shutdown
       _.unbind()
     }
   }
@@ -161,7 +161,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
   }
 
   def businessLogic(reqId: UUID, routerActor: ActorRef, routerManager: ActorRef): PartialFunction[Incoming, Outgoing] = {
-    case Login(login, password) if login == "admin" && password == "admin" && !adminLoggedInMap(reqId) ⇒
+    case Login(login, password) if login == "admin" && password == "admin" &&
+      ((adminLoggedInMap.contains(reqId) && !adminLoggedInMap(reqId)) || !adminLoggedInMap.contains(reqId)) ⇒
       adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
       LoginSuccessful(usertype = "admin", reqId)
     case Login(login, password) if login == "user" && password == "user" ⇒
