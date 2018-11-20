@@ -1,8 +1,10 @@
 package motiv.evoTest.server
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+
 import akka.{Done, NotUsed}
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.ws.{Message, TextMessage, UpgradeToWebSocket}
 import akka.http.scaladsl.model._
@@ -10,18 +12,22 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream._
 import com.github.plokhotnyuk.jsoniter_scala.core.{JsonParseException, readFromArray, writeToArray}
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.io.StdIn
-import scala.util.{Failure, Random, Success}
+import scala.util.{Failure, Random, Success, Try}
 import scala.util.control.NonFatal
 import motiv.evoTest.Model._
 import motiv.evoTest.Util._
 import motiv.evoTest.server.RequestRouter._
 import motiv.evoTest.server.RouterManager._
 import akka.stream.contrib.Implicits.TimedFlowDsl
+import ch.qos.logback.classic.{Level, Logger}
 import motiv.evoTest.server.JsoniterWSServerEntry.subscribers
-import util.StreamWrapperApp
+import org.slf4j.LoggerFactory
+import util.{StreamWrapperApp, StreamWrapperApp2}
+
 import scala.collection.immutable
 import scala.concurrent.duration._
 
@@ -30,11 +36,11 @@ import scala.concurrent.duration._
   *
   * launch: sbt "runMain jsoniterWsServer.JsoniterWSServerEntry"
   */
-object JsoniterWSServerEntry extends StreamWrapperApp {
+object JsoniterWSServerEntry extends StreamWrapperApp2 {
 
   val CORE_COUNT = 2
 
-  var tables: List[Table] = List(Table(1, "table - James Bond", 7), Table(2, "table - Mission Impossible", 4))
+  var tables: List[Table] = List()
 
   var adminLoggedInMap = Map[java.util.UUID, Boolean]()
 
@@ -42,24 +48,23 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
 
   var subscribersToRemove = Set[ActorRef]()
 
-//  var sharedKilSwitches = Set[SharedKillSwitch]()
-
   val countNum = 1000
 
-  def timeCheck(duration: FiniteDuration): Unit = {
-    println(s"$countNum elements passed in ${duration.toMillis}")
+  def timeCheck(duration: FiniteDuration)(implicit logger: Logger): Unit = {
+    logger.warn("{} elements passed in {}", countNum, duration.toMillis)
   }
 
-  def decider(router: ActorRef): Supervision.Decider = {
+  def decider(router: ActorRef)(implicit logger: Logger): Supervision.Decider = {
     case e: JsonParseException ⇒
       router ! IncomingMessage(InvalidBody(e.getMessage))
       Supervision.Resume
     case NonFatal(e) ⇒
-      router ! IncomingMessage(GeneralException(e.getMessage + e.printStackTrace()))
+      logger.error(e.getMessage, e)
+      router ! IncomingMessage(GeneralException(e.getMessage))
       Supervision.Stop
   }
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val routerManager = as.actorOf(Props[RouterManager], "routerManager")
     val sharedKS = KillSwitches.shared(s"kill-switch")
 
@@ -162,7 +167,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
 
   def businessLogic(reqId: UUID, routerActor: ActorRef, routerManager: ActorRef): PartialFunction[Incoming, Outgoing] = {
     case Login(login, password) if login == "admin" && password == "admin" &&
-      ((adminLoggedInMap.contains(reqId) && !adminLoggedInMap(reqId)) || !adminLoggedInMap.contains(reqId)) ⇒
+      !adminLoggedInMap(reqId) =>
+      //      ((adminLoggedInMap.contains(reqId) && !adminLoggedInMap(reqId)) || !adminLoggedInMap.contains(reqId)) ⇒
       adminLoggedInMap = adminLoggedInMap.updated(reqId, true)
       LoginSuccessful(usertype = "admin", reqId)
     case Login(login, password) if login == "user" && password == "user" ⇒
@@ -171,7 +177,7 @@ object JsoniterWSServerEntry extends StreamWrapperApp {
     case Ping(seq) => Pong(seq)
     case SubscribeTables =>
       subscribers += routerActor
-      TableList(tables.take(100))
+      TableList(tables.map(_.id).take(500), tables.size)
     case UnsubscribeTables =>
       subscribers -= routerActor
       UnsubscribedFromTables

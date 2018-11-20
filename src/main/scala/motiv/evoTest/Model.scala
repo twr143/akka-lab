@@ -1,10 +1,8 @@
 package motiv.evoTest
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonValueCodec
 import com.github.plokhotnyuk.jsoniter_scala.macros.{CodecMakerConfig, JsonCodecMaker}
-
 import scala.collection.mutable.ListBuffer
 
 /**
@@ -56,7 +54,7 @@ object Model {
 
   case class RemoveFailed(id: Int) extends Outgoing
 
-  case class TableList(tables: List[Table]) extends Outgoing
+  case class TableList(tables: List[Int], size: Int) extends Outgoing
 
   case object NotAuthorized extends Outgoing
 
