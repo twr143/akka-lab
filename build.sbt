@@ -15,9 +15,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "org.scalatest" %% "scalatest" % "3.0.1" % "test",
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
-  "org.scalatest" %% "scalatest" % "3.2.0-SNAP10" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.0-SNAP9",
   "joda-time" % "joda-time" % "2.7",
-  "com.typesafe.akka" %% "akka-stream-kafka" % "0.22"
+  "com.typesafe.akka" %% "akka-stream-kafka" % "0.22",
+  "com.github.dnvriend" %% "akka-persistence-inmemory" % "2.5.1.1" % Test,
 )
 
 libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % akkaVersion

@@ -46,7 +46,7 @@ class ShoppingCartActor(id: String) extends PersistentActor with ActorLogging {
       context.become(initialized)
     case evt: ShoppingCartEvent => state = applyEvent(evt)
     case RecoveryCompleted =>
-      log.info("Recovery completed!")
+//      log.info("Recovery completed!")
   }
 
   private def applyEvent(shoppingCartEvent: ShoppingCartEvent): Seq[ShoppingItem] = shoppingCartEvent match {

@@ -12,7 +12,7 @@ class ShoppingCartActorSpec
     with ImplicitSender {
 
   override def afterAll: Unit = {
-    TestKit.shutdownActorSystem(system)
+//    TestKit.shutdownActorSystem(system)
   }
 
   "ShoppingCartActor" should {
