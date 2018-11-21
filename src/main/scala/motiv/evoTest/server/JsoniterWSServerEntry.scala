@@ -1,7 +1,6 @@
 package motiv.evoTest.server
 import java.nio.charset.StandardCharsets
 import java.util.UUID
-
 import akka.{Done, NotUsed}
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.event.Logging
@@ -12,7 +11,6 @@ import akka.http.scaladsl.model.headers.{Authorization, BasicHttpCredentials}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.stream._
 import com.github.plokhotnyuk.jsoniter_scala.core.{JsonParseException, readFromArray, writeToArray}
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
 import scala.io.StdIn
@@ -24,10 +22,7 @@ import motiv.evoTest.server.RequestRouter._
 import motiv.evoTest.server.RouterManager._
 import akka.stream.contrib.Implicits.TimedFlowDsl
 import ch.qos.logback.classic.{Level, Logger}
-import motiv.evoTest.server.JsoniterWSServerEntry.subscribers
-import org.slf4j.LoggerFactory
-import util.{StreamWrapperApp, StreamWrapperApp2}
-
+import util.StreamWrapperApp2
 import scala.collection.immutable
 import scala.concurrent.duration._
 

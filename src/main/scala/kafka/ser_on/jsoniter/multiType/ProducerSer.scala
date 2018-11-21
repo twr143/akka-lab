@@ -50,7 +50,7 @@ object JupiterProducerExample extends ProducerSer {
   //  )
   def main(args: Array[String]): Unit = {
     // #plainSinkWithProducer
-    val done = Source.fromIterator(() => Iterator.range(2200, 10000)).throttle(10, FiniteDuration(1, TimeUnit.SECONDS), 10, ThrottleMode.shaping).
+    val done = Source.fromIterator(() => Iterator.range(2200, 2210)).throttle(10, FiniteDuration(1, TimeUnit.SECONDS), 10, ThrottleMode.shaping).
       map {
         case e if e % 2 == 0 => SerializationBeanJsoniter(e.toString, e, OffsetDateTime.now())
         case e if e % 2 == 1 => SerializationBeanJsoniter2(e.toString, e, OffsetDateTime.now(), e)

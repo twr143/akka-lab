@@ -122,7 +122,7 @@ object ProducerFlowExample extends ProducerExample {
         val partition = 0
         val value = number.toString
         ProducerMessage.Message(
-          new ProducerRecord("testT6", partition, "key", value),
+          new ProducerRecord("testT1", partition, "key", value),
           number
         )
       }
