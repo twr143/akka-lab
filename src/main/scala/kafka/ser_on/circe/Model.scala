@@ -1,4 +1,4 @@
-package kafka.ser_on.circe
+/*package kafka.ser_on.circe
 
 import java.util.Date
 
@@ -37,4 +37,4 @@ object Model {
   }
   case class SerializationBean(first: String, second: Int, third: java.util.Date)
 
-}
+} */

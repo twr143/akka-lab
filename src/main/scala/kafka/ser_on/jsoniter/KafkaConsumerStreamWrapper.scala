@@ -20,6 +20,8 @@ trait KafkaConsumerStreamWrapper {
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger, config: Config): DrainingControl[Done]
 
   def main(args: Array[String]): Unit = {
+    if (args.length != 1) throw new Exception("please provide the topic name to read as the program argument. Thanks.")
+
     implicit val as: ActorSystem = ActorSystem()
     implicit val mat: ActorMaterializer = ActorMaterializer()
     implicit val ec: ExecutionContext = as.dispatcher
@@ -27,7 +29,7 @@ trait KafkaConsumerStreamWrapper {
     root.setLevel(Level.WARN)
     implicit val config: Config = ConfigFactory.load().getConfig("akka.kafka.consumer")
     val control = body(args)
-    as.scheduler.scheduleOnce(2000.millis)({
+    as.scheduler.scheduleOnce(3000.millis)({
       control.drainAndShutdown().onComplete {
             case Failure(e) =>
               root.error(e.getMessage, e)

@@ -31,9 +31,9 @@ libraryDependencies += compilerPlugin(
 libraryDependencies ++= {
   val kafkaSerializationV = "0.3.11" // see the Maven badge above for the latest version
   Seq(
-    "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV,
-    "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
-    "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
+    "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV//,
+//    "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
+//    "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
   )
 }
 

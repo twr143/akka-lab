@@ -11,48 +11,25 @@ import akka.kafka.{ProducerMessage, ProducerSettings}
 import akka.kafka.scaladsl.Producer
 import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{ActorMaterializer, ThrottleMode}
-import kafka.ser_on.jsoniter.JsoniterScalaSerialization
+import ch.qos.logback.classic.Logger
+import com.typesafe.config.Config
+import kafka.ser_on.jsoniter.Model.{SerializationBeanJsoniter, SerializationBeanJsoniter3, SerializationBeanJsoniterBase}
+import kafka.ser_on.jsoniter.{KafkaSerJsoniter, KafkaProducerStreamWrapper}
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.common.internals.Topic
-import org.apache.kafka.common.serialization._
-import scala.concurrent.Future
+import org.apache.kafka.common.serialization.StringSerializer
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
+import kafka.ser_on.jsoniter.Model._
+
 /**
   * Created by Ilya Volynin on 13.09.2018 at 9:08.
   */
-trait ProducerSer {
-  val system = ActorSystem("example")
-  // #producer
-  // #settings
-  val config = system.settings.config.getConfig("akka.kafka.producer")
-  // #producer
-  implicit val ec = system.dispatcher
-  implicit val materializer = ActorMaterializer.create(system)
+object ProducerSerMultiMessage extends KafkaProducerStreamWrapper {
 
-  def terminateWhenDone(result: Future[Done]): Unit =
-    result.onComplete {
-      case Failure(e) =>
-        system.log.error(e, e.getMessage)
-        system.terminate()
-      case Success(_) =>
-        println("terminating...")
-        system.terminate()
-    }
-}
-object JupiterProducerExample extends ProducerSer {
-  import kafka.ser_on.jsoniter.Model._
-  val producerSettings =
-    ProducerSettings(config, new StringSerializer, JsoniterScalaSerialization.jsoniterScalaSerializer()).withBootstrapServers("localhost:9092")
 
-  //  val kafkaProducer = new KafkaProducer(
-  //    Map[String, AnyRef](BOOTSTRAP_SERVERS_CONFIG -> "localhost:9092").asJava,
-  //    new StringSerializer,
-  //    circeJsonSerializer[SerializationBean]
-  //  )
   def createMultiMessage[K, V, PassThroughType](topic1: String, topic2: String,
                                                 value1: SerializationBeanJsoniterBase, value2: SerializationBeanJsoniterBase,
-                                                passThrough: PassThroughType) = {
+                                                passThrough: PassThroughType): ProducerMessage.MultiMessage[String, SerializationBeanJsoniterBase, PassThroughType] = {
     import scala.collection.immutable
     // #multiMessage
     ProducerMessage.MultiMessage(
@@ -65,9 +42,11 @@ object JupiterProducerExample extends ProducerSer {
     // #multiMessage
   }
 
-  def main(args: Array[String]): Unit = {
-    // #plainSinkWithProducer
-    val done = Source.fromIterator(() => Iterator.range(1500, 10000)).throttle(10, FiniteDuration(1, TimeUnit.SECONDS), 10, ThrottleMode.shaping).
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger, config: Config): Future[Any] = {
+    import kafka.ser_on.jsoniter.KafkaSerJsoniter._
+    val producerSettings =
+      ProducerSettings(config, new StringSerializer, KafkaSerJsoniter.jsoniterScalaSerializer()).withBootstrapServers("localhost:9092")
+    Source.fromIterator(() => Iterator.range(1500, 1505)).throttle(10, FiniteDuration(1, TimeUnit.SECONDS), 10, ThrottleMode.shaping).
       map(e => SerializationBeanJsoniter(e.toString, e, OffsetDateTime.now()))
       .map(value => createMultiMessage("testT1", "testT2", value, SerializationBeanJsoniter3(value.second), value.second))
       .via(Producer.flexiFlow(producerSettings))
@@ -85,9 +64,6 @@ object JupiterProducerExample extends ProducerSer {
         case ProducerMessage.PassThroughResult(passThrough) =>
           s"passed through"
       }
-      .runWith(Sink.foreach(println(_)))
-    // #plainSinkWithProducer
-    Thread.sleep(3000)
-    terminateWhenDone(done)
+      .runWith(Sink.foreach(logger.warn))
   }
 }

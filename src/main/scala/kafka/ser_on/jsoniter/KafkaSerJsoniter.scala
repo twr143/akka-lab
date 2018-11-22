@@ -7,7 +7,7 @@ import org.apache.kafka.common.serialization.{Deserializer => KafkaDeserializer,
 /**
   * Created by Ilya Volynin on 13.09.2018 at 14:42.
   */
-object JsoniterScalaSerialization {
+object KafkaSerJsoniter {
 
 
     def jsoniterScalaSerializer[T: JsonValueCodec](config: WriterConfig = WriterConfig()): KafkaSerializer[T] =

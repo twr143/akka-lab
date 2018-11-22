@@ -1,4 +1,4 @@
-package kafka.ser_on.circe
+/*package kafka.ser_on.circe
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -57,4 +57,4 @@ object PlainSinkWithProducerExample extends ProducerSer {
     terminateWhenDone(done)
   }
 }
-
+  */

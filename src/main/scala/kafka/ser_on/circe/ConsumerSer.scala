@@ -1,4 +1,4 @@
-package kafka.ser_on.circe
+/*package kafka.ser_on.circe
 
 import akka.Done
 import akka.actor.ActorSystem
@@ -69,5 +69,5 @@ object ConsumerSerWithBatchCommitExample extends ConsumerSer {
     println(s"k $key v $value, ${Thread.currentThread().getId}")
     if ("7".equals(value)) Future.failed(new Exception("7 is the unlucky number")) else Future.successful(Done)
   }
-}
+} */
 
