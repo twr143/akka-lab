@@ -19,7 +19,7 @@ trait StreamWrapperApp2 {
     implicit val mat: ActorMaterializer = ActorMaterializer()
     implicit val ec: ExecutionContext = as.dispatcher
     implicit lazy val root: Logger = LoggerFactory.getLogger(s"${this.getClass.getCanonicalName}".replace("$","")).asInstanceOf[ch.qos.logback.classic.Logger]
-    root.setLevel(Level.INFO)
+    root.setLevel(Level.WARN)
 
     try Await.result(body(args), 60.minutes)
     finally as.terminate()
