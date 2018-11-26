@@ -3,7 +3,6 @@
  */
 package johan
 import java.time.OffsetDateTime
-
 import akka.NotUsed
 import akka.pattern.Patterns.after
 import akka.actor.ActorSystem
@@ -12,13 +11,14 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage}
 import akka.http.scaladsl.server.Directives._
 import akka.stream.{ActorMaterializer, SourceShape}
 import akka.stream.scaladsl.{Flow, GraphDSL, Keep, Sink, Source}
-import util.StreamWrapperApp
-
+import ch.qos.logback.classic.Logger
+import util.{DateTimeUtils, StreamWrapperApp, StreamWrapperApp2}
 import scala.collection.immutable.Seq
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
+import scala.io.StdIn
 
 /**
   * Accepts strings over websocket at ws://127.0.0.1/measurements
@@ -28,9 +28,9 @@ import scala.concurrent.duration._
   * Based on this (great) blog article by Colin Breck:
   * http://blog.colinbreck.com/akka-streams-a-motivating-example/
   */
-object SocketStream extends StreamWrapperApp {
+object GroupedWithinSocketStream extends StreamWrapperApp2 {
 
-  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val measurementsFlow =
       Flow[Message].flatMapConcat { message =>
         // handles both strict and streamed ws messages by folding
@@ -39,7 +39,7 @@ object SocketStream extends StreamWrapperApp {
       }
         .groupedWithin(1000, 3.second)
         .mapAsync(5)(Database.asyncBulkInsert)
-        .map(written => TextMessage(s"wrote up to: ${written.last}, ${OffsetDateTime.now()}"))
+        .map(written => TextMessage(s"wrote up to: ${written.last}, ${DateTimeUtils.currentODT}"))
     val route =
       path("ws") {
         get {
@@ -50,19 +50,25 @@ object SocketStream extends StreamWrapperApp {
     futureBinding.onComplete {
       case Success(binding) =>
         val address = binding.localAddress
-        println(s"Akka HTTP server running at ${address.getHostString}:${address.getPort}")
+        logger.warn(s"Akka HTTP server running at ${address.getHostString}:${address.getPort}")
       case Failure(ex) =>
-        println(s"Failed to bind HTTP server: ${ex.getMessage}")
+        logger.error("Failed to bind HTTP server: {}", ex.getMessage)
         ex.fillInStackTrace()
     }
-    after(15.seconds, as.scheduler, ec, Future())
+    logger.warn(f"Server online at http://localhost:8080/\nPress RETURN to stop...")
+    StdIn.readLine()
+    futureBinding.flatMap {
+      _.unbind()
+    }
   }
+
   object Database {
 
-    def asyncBulkInsert(entries: Seq[String])(implicit as: ActorSystem): Future[Seq[String]] = {
+    def asyncBulkInsert(entries: Seq[String])(implicit as: ActorSystem, logger: Logger): Future[Seq[String]] = {
       // dispatcher for returning future might be custom
-      println(s"saved ${entries.size} messages, ${OffsetDateTime.now()}")
+      logger.warn(s"saved {} messages, {}", entries.size, DateTimeUtils.currentODT)
       after(30.millis, as.scheduler, as.dispatcher, Future(entries)(as.dispatcher))
     }
   }
+
 }
