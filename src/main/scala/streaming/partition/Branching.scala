@@ -18,9 +18,9 @@ object Branching extends StreamWrapperApp2 {
   override def body(args: Array[String])
                    (implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val numbers = Source[Int](List(1, 2, 3, 4, 5, 6))
-    val s1 = Sink.foreach[Int](number => logger.warn("%3=0: \t{}", number))
-    val s2 = Sink.foreach[Int](number => logger.warn("%3=1: \t{}", number))
-    val s3 = Sink.foreach[Int](number => logger.warn("%3=2: \t{}", number))
+    val s1 = Sink.foreach[Int](logger.warn("%3=0: \t{}", _))
+    val s2 = Sink.foreach[Int](logger.warn("%3=1: \t{}", _))
+    val s3 = Sink.foreach[Int](logger.warn("%3=2: \t{}", _))
 
     numbers.map(err1Func).via(divertErrors[Int, Int, Future[Done]](s1))
       .map(err2Func).via(divertErrors[Int, Int, Future[Done]](s2)).runWith(s3)
