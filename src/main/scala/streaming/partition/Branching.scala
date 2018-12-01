@@ -25,8 +25,8 @@ object Branching extends StreamWrapperApp2 {
     val s3 = Sink.foreach[Int](logger.warn("%3=2: \t{}", _))
     val s4 = Sink.foreach[Int](logger.warn("%60==0: \t{}", _))
     val flow1 = Flow[Int].map(_ * 10).map(errBranchFunc).via(divertErrors(s4))
-    numbers.map(err1Func).via(divertErrors[Int, Int, Future[Done]](flow1.toMat(s1)(Keep.right)))
-      .map(err2Func).via(divertErrors[Int, Int, Future[Done]](s2)).runWith(s3)
+    numbers.map(err1Func).via(divertErrors(flow1.toMat(s1)(Keep.right)))
+      .map(err2Func).via(divertErrors(s2)).runWith(s3)
 
   }
 

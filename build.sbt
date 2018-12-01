@@ -42,10 +42,14 @@ libraryDependencies ++= Seq(
   "com.github.plokhotnyuk.jsoniter-scala" %% "jsoniter-scala-macros" % "0.34.1" % Provided // required only in compile-time
 )
 
-libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
+unmanagedSourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/scala")
+unmanagedSourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/java")
+unmanagedResourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/resources")
+//libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
 
 val sampleTask = taskKey[Int]("sample")
 sampleTask := {
   println(s"sbtVersion=${sbtVersion.value}")
+  println(baseDirectory.value + "/src-ext/contrib/src")
   0
 }
