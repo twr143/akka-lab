@@ -78,10 +78,11 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
         .mapAsync(CORE_COUNT * 2 - 1)(in ⇒ in.runFold("")(_ + _)
           .map(in ⇒ readFromArray[Incoming](in.getBytes("UTF-8"))))
         //        .scan(Ping(0): Incoming, 0)((t, out) => (out, t._2 + 1)) //1
-        .zipWith(Source.fromIterator(() => Iterator.from(0))) {
-        //2  1 equiv. 2    2 is faster
-        (incoming, counter) => (incoming, counter)
-      }
+//        .zipWith(Source.fromIterator(() => Iterator.from(0))) {
+//        2  1 equiv. 2    2 is faster
+//        (incoming, counter) => (incoming, counter)
+//      }
+        .zipWithIndex
         //        .zipWithIndex    //3   1 = 2 = 3      2 is the fastest
         .timedIntervalBetween(_._2 % countNum == 0, timeCheck).map(_._1)
         .map(businessLogic(reqId, routerActor, routerManager))

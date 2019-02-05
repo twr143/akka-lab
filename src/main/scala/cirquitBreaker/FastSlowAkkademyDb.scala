@@ -3,10 +3,13 @@ import akka.actor.{Actor, ActorSystem, Props, Status}
 import akka.event.Logging
 import akka.pattern.CircuitBreaker
 import akka.util.Timeout
+
 import scala.concurrent.duration._
 import akka.pattern._
 import akka.stream.ActorMaterializer
-import util.StreamWrapperApp
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
+
 import scala.collection.mutable.HashMap
 import scala.concurrent.{Await, ExecutionContext, Future}
 
@@ -36,9 +39,9 @@ class FastSlowAkkademyDb extends Actor {
   }
 }
 
-object FSDbEntry extends StreamWrapperApp {
+object FSDbEntry extends StreamWrapperApp2 {
 
-  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logging: Logger): Future[Any] = {
     implicit val timeout: Timeout = Timeout(100 millis)
     val db = as.actorOf(Props[FastSlowAkkademyDb])
     val log = Logging(as, db)
@@ -47,8 +50,8 @@ object FSDbEntry extends StreamWrapperApp {
         maxFailures = 10,
         callTimeout = 1 seconds,
         resetTimeout = 3 seconds).
-        onOpen(println("circuit breaker opened!")).
-        onClose(println("circuit breaker closed!")).
+        onOpen(log.info("circuit breaker opened!")).
+        onClose(log.info("circuit breaker closed!")).
         onHalfOpen(log.info("circuit breaker half-open"))
     Await.result(db ? SetRequest("key", "value"), 2 seconds)
     (1 to 100).toStream.foreach { _ =>

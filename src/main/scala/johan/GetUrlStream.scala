@@ -11,33 +11,31 @@ import akka.http.scaladsl.server.Directives._
 import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import util.StreamWrapperApp
-
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
 /**
-  * Natural numbers (up to maximum long, then it wraps around) as a service http://127.0.0.1/numbers
+  * Natural numbers as a service http://127.0.0.1/numbers
   */
-object GetUrlStream extends StreamWrapperApp {
+object GetUrlStream extends StreamWrapperApp2 {
 
-  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     implicit val ec: ExecutionContextExecutor = as.dispatcher
     val promise = Promise[Unit]()
     val numbers2 =
       Source.unfold(0L) { n =>
-        Thread.sleep(10)
-        val result = (n + 11, n + 3)
-        Some(result)
-      }.take(250).map(n => ByteString(n + (if (n % 1000 == 0) "\n" else " ")))
+        Some(n + 11, n + 3)
+      }.take(250).map(n => ByteString((if (n % 1000 < 11 && n > 11) "\n" else if (n > 11) " " else "") + n))
         .buffer(1000, overflowStrategy = OverflowStrategy.backpressure)
         .throttle(1, 100.millis, 200, ThrottleMode.Shaping)
         .watchTermination()((_, futDone: Future[Done]) =>
           futDone.onComplete {
             case Success(_) ⇒
               promise.complete(Success(()))
-            case Failure(t) ⇒ println(s"numbers2 stream failed: ${t.getMessage}")
+            case Failure(t) ⇒ logger.error(s"numbers2 stream failed: {}", t.getMessage)
           })
     val route =
       path("numbers") {
@@ -51,9 +49,9 @@ object GetUrlStream extends StreamWrapperApp {
     futureBinding.onComplete {
       case Success(binding) =>
         val address = binding.localAddress
-        println(s"Akka HTTP server running at ${address.getHostString}:${address.getPort}")
+        logger.warn("Akka HTTP server running at {}:{}", address.getHostString, address.getPort)
       case Failure(ex) =>
-        println(s"Failed to bind HTTP server: ${ex.getMessage}")
+        logger.error("Failed to bind HTTP server: {}", ex.getMessage)
         ex.fillInStackTrace()
     }
     promise.future

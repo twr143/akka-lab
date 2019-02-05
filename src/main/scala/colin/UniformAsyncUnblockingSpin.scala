@@ -3,41 +3,27 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Random, Success}
 import scala.concurrent.duration.FiniteDuration
 import java.util.concurrent.TimeUnit._
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
+import util.StreamWrapperApp2._
 
-import util.StreamWrapperApp
-
-object UniformRandomSpin extends StreamWrapperApp {
+object UniformAsyncUnblockingSpin extends StreamWrapperApp2 {
 
   val random = new Random()
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     Future.sequence(List(timeCheckWrapper(parallelMapAsyncAsync, "uniformRandomSpin"),
       timeCheckWrapper(parallelMapAsyncAsyncUnordered, "parallelMapAsyncAsyncUnordered"),
       timeCheckWrapper(parallelNonBlockingCall, "parallelNonBlockingCall")))
   }
 
-  def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, m: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
-    val start = System.currentTimeMillis()
-    val res = f()
-    res.onComplete {
-      case Success(x) =>
-        println(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
-      case Failure(e) =>
-        println(s"Failure: ${e.getMessage}")
-        as.terminate()
-    }
-    res
-  }
-
   def uniformRandomSpin(value: Int)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Int] = Future {
     val max = random.nextInt(6)
-    val start = System.currentTimeMillis()
-    while ((System.currentTimeMillis() - start) < max) {}
+    Thread.sleep(max)
     value
   }
 

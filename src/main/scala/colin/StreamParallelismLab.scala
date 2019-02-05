@@ -3,24 +3,14 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Sink, Source}
-import util.StreamWrapperApp
-
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
+import util.StreamWrapperApp2._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-object StreamAsyncLab extends StreamWrapperApp {
 
-  def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Done] = {
-    val start = System.currentTimeMillis()
-    val res = f()
-    res.onComplete {
-      case Success(x) =>
-        println(s"$name completed for: ${System.currentTimeMillis() - start}")
-      case Failure(e) =>
-        println(s"Failure: ${e.getMessage}")
-        as.terminate()
-    }
-    res
-  }
+object StreamParallelismLab extends StreamWrapperApp2 {
+
 
   def spinSimple()(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[Done] =
     Source(1 to 1000)
@@ -48,12 +38,11 @@ object StreamAsyncLab extends StreamWrapperApp {
       .runWith(Sink.ignore)
 
   def spin(value: Int)(implicit ec: ExecutionContext): Int = {
-    val start = System.currentTimeMillis()
-    while ((System.currentTimeMillis() - start) < 2) {}
+    Thread.sleep(2)
     value
   }
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     Future.sequence(List(timeCheckWrapper(spinSimple, "spinSimple"),
       timeCheckWrapper(spinSimpleAsync, "spinSimpleAsync"),
       timeCheckWrapper(spinMapAsync4, "spinMapAsync4"),
