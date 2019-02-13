@@ -209,6 +209,8 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
       //          RemoveFailed(id)
 
       //also racing cond
+      logger.warn("remove t.id {}", Thread.currentThread().getId.toString)
+      
       if (tables.nonEmpty) {
         tables.remove(0)
         val removed = TableRemoved(id)

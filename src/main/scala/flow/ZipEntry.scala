@@ -17,26 +17,26 @@ package flow
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.stream.{ActorMaterializer, OverflowStrategy, ThrottleMode}
-import util.StreamWrapperApp
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.DurationInt
 
 /**
   * Prints "Learn you Akka Streams for great good!" in fancy ways.
   */
-object ZipEntry extends StreamWrapperApp {
+object ZipEntry extends StreamWrapperApp2 {
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val sevenLines =
       Source.fromIterator(() => Iterator.from(0))
         .take(7)
     val toCharsIndented =
       Flow[Int]
-        .zip(Source.fromIterator(() => Iterator.from(0)))
+        .zipWithIndex
         .mapConcat {
           case (s, n) =>
-            val i = " " * n
-            f"$i$s%n"
+            f"${s.toString.padTo(n.toInt + 1, ' ').reverse}%n"
         }
     val printThrottled =
       Flow[Char]
