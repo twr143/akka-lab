@@ -11,25 +11,28 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.model.ws._
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import ch.qos.logback.classic.Logger
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromArray, writeToArray}
 import motiv.evoTest.Model._
-import util.StreamWrapperApp
+import util.StreamWrapperApp2
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import motiv.evoTest.Util._
+
 import scala.util.Success
 
 // sample run: "runMain motiv.evoTest.client.WSClientFlowEntry 21 40"
-object WSClientFlowEntry extends StreamWrapperApp {
+object WSClientFlowEntry extends StreamWrapperApp2 {
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger:Logger): Future[Any] = {
     if (args.length != 2) return Future.failed(new Exception("please provide first and last indexes of range for adding table as program arguments. Thanks."))
     //
     val incoming: Sink[Message, Future[Done]] =
       Sink.foreach {
         case message: TextMessage.Strict =>
           val out = readFromArray[Outgoing](message.text.getBytes("UTF-8"))
-          println(out)
+          logger.warn(out.toString)
       }
     //
     val (start, end) = (args(0).toInt, args(1).toInt)
@@ -83,8 +86,8 @@ object WSClientFlowEntry extends StreamWrapperApp {
     }
 
     // in a real application you would not side effect here
-    connected.onComplete(println)
-    closed.onComplete(_ => println("closed"))
+    connected.onComplete(tr => logger.warn(tr.toString))
+    closed.onComplete(_ => logger.warn("closed"))
     closed
     //no need to wait after
     //.flatMap(_ => akka.pattern.after(20000.millis, using = as.scheduler)(Future.successful()))

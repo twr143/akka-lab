@@ -3,16 +3,20 @@ package supervision
 created by Ilya Volynin at 25.01.18
 */
 import java.util.UUID
+
 import akka.{Done, NotUsed}
 import akka.actor._
 import akka.pattern.Patterns.after
 import akka.pattern.{Backoff, BackoffSupervisor}
+
 import scala.concurrent.duration._
 import akka.pattern._
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.util.Timeout
-import util.StreamWrapperApp
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
+
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Success
 import scala.util.control.NonFatal
@@ -20,37 +24,39 @@ import scala.util.control.NonFatal
 /**
   * Demonstration of different supervision strategies
   */
-class Kenny(completion: Promise[Done]) extends Actor {
+class Kenny(completion: Promise[Done])(implicit logger:Logger) extends Actor {
 
   val id: String = UUID.randomUUID().toString
 
-  override def preStart(): Unit = println(s"kenny prerestart $id")
+  override def preStart(): Unit = logger.warn(s"kenny prerestart $id")
 
   def receive: PartialFunction[Any, Unit] = {
-    case "exc" => throw new MyException("exc happened!")
+    case "exc" => throw new MyException("exc happened!", completion)
     case "complete" =>
-      println("complete received!")
+      logger.warn("complete received!")
       completion.complete(Success(Done))
-    case _ => println("Kenny received a message")
+    case _ => logger.warn("Kenny received a message")
   }
 }
 
 object Kenny {
-  def props(completion: Promise[Done]): Props = Props(new Kenny(completion))
+
+  def props(completion: Promise[Done])(implicit logger: Logger) = Props(new Kenny(completion))
 }
 
-class MyException(msg: String) extends Exception(msg)
+case class MyException(msg: String, completion: Promise[Done]) extends Exception(msg)
 
-class MainSup extends Actor {
+class MainSup(implicit logger: Logger) extends Actor {
   import akka.actor.OneForOneStrategy
   import akka.actor.SupervisorStrategy._
   import scala.concurrent.duration._
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy(maxNrOfRetries = 10, withinTimeRange = 1 minute) {
-      case _: MyException =>
-        println("myexception in mainSup, terminating actor system!")
+      case e: MyException =>
+        logger.warn("myexception in mainSup, terminating actor system!")
         context.system.terminate()
+        e.completion.complete(Success(Done))
         SupervisorStrategy.Stop
       case _: Exception =>
         SupervisorStrategy.Escalate
@@ -61,13 +67,16 @@ class MainSup extends Actor {
     case p: Props ⇒ sender() ! context.actorOf(p)
   }
 }
+object MainSup {
+  def props()(implicit logger: Logger) = Props(new MainSup())
+}
 
-object BackOffTest extends StreamWrapperApp {
+object BackOffTest extends StreamWrapperApp2 {
 
   // create the ActorSystem instance
   implicit val timeout: Timeout = Timeout(3.seconds)
 
-  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val completion = Promise[Done]()
     val kennyProps = Kenny.props(completion)
     val supervisor = BackoffSupervisor.props(
@@ -79,24 +88,45 @@ object BackOffTest extends StreamWrapperApp {
         .withSupervisorStrategy(
         OneForOneStrategy() {
           case _: MyException =>
-            println("myexception happened")
+            logger.warn("myexception happened")
             SupervisorStrategy.Restart // this is subjected to play with
           case _: Exception =>
             SupervisorStrategy.Escalate
           case _ => SupervisorStrategy.Stop
         }))
-    val mainSup = as.actorOf(Props[MainSup], name = "MainSuper")
+    val mainSup = as.actorOf(MainSup.props(), name = "MainSuper")
     (mainSup ? supervisor).mapTo[ActorRef].map { ken => ken ! "exc"; ken }
-      .flatMap(ken => after(1000.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "msg";ken})))
-          .flatMap(ken => after(800.millis, as.scheduler, ec, Future({ken ! "complete";ken})))
+      .flatMap(ken => after(1000.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "msg";
+        ken
+      })))
+      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
+        ken ! "complete";
+        ken
+      })))
 
     // unfortunatelly the stream wouldn't start (since the ken actor isn't alive) :(
-      //.map(ken => StreamAfterRecovery(ken))
+    //.map(ken => StreamAfterRecovery(ken))
     completion.future
   }
 

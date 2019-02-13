@@ -1,6 +1,5 @@
-
+.hydra
 .gitignore
-.idea/libraries/sbt__o
 rg_scalactic_scalactic_2_12_3_2_0_SNAP9_jar.xml
 evo_commands.txt
 hs_err_pid11076.log

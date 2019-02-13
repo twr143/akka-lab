@@ -8,10 +8,10 @@ import akka.http.scaladsl.model.ws.{Message, TextMessage, WebSocketRequest, WebS
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import akka.stream.scaladsl.{Concat, Flow, Keep, Sink, Source}
+import ch.qos.logback.classic.Logger
 import com.github.plokhotnyuk.jsoniter_scala.core.{readFromArray, writeToArray}
 import motiv.evoTest.Model.{AddTable, Incoming, Login, Outgoing, RemoveTable, SubscribeTables, Table, TableAdded, TableRemoved, UnsubscribeTables}
-import util.StreamWrapperApp
-
+import util.{StreamWrapperApp, StreamWrapperApp2}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import motiv.evoTest.Util._
@@ -19,18 +19,18 @@ import motiv.evoTest.Util._
 /**
   * Created by Ilya Volynin on 19.11.2018 at 15:20.
   */
-object WSMultipleClientEntry extends StreamWrapperApp {
+object WSMultipleClientEntry extends StreamWrapperApp2 {
 
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     //
     def incoming: Sink[Message, Future[Done]] =
       Sink.foreach {
         case message: TextMessage.Strict =>
           val out = readFromArray[Outgoing](message.text.getBytes("UTF-8"))
           out match {
-            case _: TableAdded | _:TableRemoved =>
+            case _: TableAdded | _: TableRemoved =>
             case theRest =>
-              println(s" $theRest")
+              logger.warn(s" $theRest")
           }
       }
 
@@ -43,20 +43,21 @@ object WSMultipleClientEntry extends StreamWrapperApp {
     val subscribeSource = Source.single(SubscribeTables)
     val unSubscribeSource = Source.single(UnsubscribeTables)
     val maybeSource = Source.maybe[Incoming]
-    val tablesPerClient = 100
+    val tablesPerClient = 1000
 
-    def iterFirstHalf(startIdx: Int) = Iterator.range(startIdx * 100, startIdx * 100 + tablesPerClient)
+    def iterFirstHalf(startIdx: Int) = Iterator.range(startIdx * 1000, startIdx * 1000 + tablesPerClient)
 
     def newTablesSource(startIdx: Int) = Source.fromIterator(() => iterFirstHalf(startIdx)).map(i => AddTable(Table(i, "table - Foo Fighters " + i * i, 4 * i), i + 1))
+
     def removeTablesSource(startIdx: Int) =
       Source.fromIterator(() => iterFirstHalf(startIdx)).map(RemoveTable)
 
     def aggSource(index: Int) = Source.combine[Incoming, Incoming](loginSource,
       subscribeSource, //newTablesFirstHalf,
       //unSubscribeSource,
-      newTablesSource(index),
-      removeTablesSource(index)//newTablesSecondHalf
-      //  ,maybeSource    //the first $breath will hang
+      newTablesSource(index),// maybeSource //,
+      removeTablesSource(index) //newTablesSecondHalf
+    //    ,maybeSource    //the first $breath will hang
     )(Concat(_)).map(incoming => TextMessage(writeToArray[Incoming](incoming))
     )
 
@@ -64,17 +65,17 @@ object WSMultipleClientEntry extends StreamWrapperApp {
       WebSocketRequest("ws://localhost:9000/ws_api",
         scala.collection.immutable.Seq(Authorization(BasicHttpCredentials("ilya", "voly")))))
 
-    val r = Source.fromIterator(() => Iterator.range(41, 56))
-      .flatMapMerge(10, i => aggSource(i) .throttle(100, 200.millis)
-      ).viaMat(webSocketFlow)(Keep.right)
-      .alsoToMat(incoming)(Keep.both).runWith(Sink.ignore)
+    val r = Source.fromIterator(() => Iterator.range(43, 45))
+      .flatMapMerge(10, i => aggSource(i)/*.throttle(100, 200.millis)*/.viaMat(webSocketFlow)(Keep.right)
+            .alsoToMat(incoming)(Keep.both)
+      ).runWith(Sink.ignore)
     r
   }
 
-  def resultSink(implicit as: ActorSystem, ec: ExecutionContext): Sink[List[Future[Done]], Future[Done]] =
+  def resultSink(implicit as: ActorSystem, ec: ExecutionContext, logger: Logger): Sink[List[Future[Done]], Future[Done]] =
     Sink.foreach {
       list: List[Future[Done]] =>
-        println(s"reached resultSink, size ${list.size}")
+        logger.warn(s"reached resultSink, size ${list.size}")
         Future.sequence(list)
     }
 }

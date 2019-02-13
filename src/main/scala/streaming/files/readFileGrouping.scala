@@ -1,19 +1,22 @@
 package streaming.files
 import java.io.FileNotFoundException
 import java.nio.file.{Files, Paths}
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Framing}
 import akka.util.ByteString
-import util.StreamWrapperApp
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
+
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 
 /*
 created by Ilya Volynin at 14.12.17
 */
-object readFileGrouping extends StreamWrapperApp {
+object readFileGrouping extends StreamWrapperApp2 {
 
   def extractId(s: String): (String, String) = {
     val a = s.split(",")
@@ -22,10 +25,11 @@ object readFileGrouping extends StreamWrapperApp {
 
   def adjust[A, B](m: Map[A, B], k: A, DefaultValue: B)(f: B => B): Map[A, B] = m.updated(k, f(m.getOrElse(k, DefaultValue)))
 
-  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
-    val p = Paths.get("tmp/ungrouped.csv")
+  def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
+    val fileName = "tmp/ungrouped.csv"
+    val p = Paths.get(fileName)
     if (Files.notExists(p)) {
-      println("file not found")
+      logger.error("file {} not found", fileName)
       as.terminate()
       return Future.failed(new FileNotFoundException(p.toAbsolutePath.toString))
     }
@@ -37,7 +41,7 @@ object readFileGrouping extends StreamWrapperApp {
     => adjust(l, r._1, 0)(_ + 1)
     ).runForeach { l: Map[String, Int] =>
       val result = l.toList.sortWith(_._2 > _._2)
-      println(result)
+      logger.warn(result.toString)
     }
   }
 }

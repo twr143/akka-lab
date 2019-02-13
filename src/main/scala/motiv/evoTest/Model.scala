@@ -44,7 +44,7 @@ object Model {
 
   case object UnsubscribedFromTables extends Outgoing
 
-  case class TableAdded(after_id: Int, table: Table) extends Outgoing
+  case class TableAdded(after_id: Int, table: Table, reqId: UUID) extends Outgoing
 
   case class TableUpdated(table: Table) extends Outgoing
 
@@ -54,9 +54,9 @@ object Model {
 
   case class RemoveFailed(id: Int) extends Outgoing
 
-  case class TableList(tables: List[Int], size: Int) extends Outgoing
+  case class TableList(tables: ListBuffer[Int], size: Int) extends Outgoing
 
-  case object NotAuthorized extends Outgoing
+  case class NotAuthorized(command: String, reqId: UUID) extends Outgoing
 
   case object NotSubscribed extends Outgoing
 
