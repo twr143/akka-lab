@@ -5,7 +5,7 @@ package motiv.evoTest.server
   */
 import akka.actor._
 import motiv.evoTest.Model.Outgoing
-import motiv.evoTest.server.RequestRouter.IncomingMessage
+import motiv.evoTest.server.RequestRouter.{IncomingMessage, OutgoingMessage}
 
 object RouterManager {
 
@@ -25,6 +25,6 @@ class RouterManager extends Actor {
       context.watch(sender())
     case Terminated(user) =>
     case msg: Notification =>
-      msg.subscribers.foreach(_ ! IncomingMessage(msg.message))
+      msg.subscribers.foreach(_ ! OutgoingMessage(msg.message))
   }
 }

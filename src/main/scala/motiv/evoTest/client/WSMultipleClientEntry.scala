@@ -43,7 +43,7 @@ object WSMultipleClientEntry extends StreamWrapperApp2 {
     val subscribeSource = Source.single(SubscribeTables)
     val unSubscribeSource = Source.single(UnsubscribeTables)
     val maybeSource = Source.maybe[Incoming]
-    val tablesPerClient = 1000
+    val tablesPerClient = 100
 
     def iterFirstHalf(startIdx: Int) = Iterator.range(startIdx * 1000, startIdx * 1000 + tablesPerClient)
 
@@ -65,7 +65,7 @@ object WSMultipleClientEntry extends StreamWrapperApp2 {
       WebSocketRequest("ws://localhost:9000/ws_api",
         scala.collection.immutable.Seq(Authorization(BasicHttpCredentials("ilya", "voly")))))
 
-    val r = Source.fromIterator(() => Iterator.range(43, 45))
+    val r = Source.fromIterator(() => Iterator.range(0,2))
       .flatMapMerge(10, i => aggSource(i)/*.throttle(100, 200.millis)*/.viaMat(webSocketFlow)(Keep.right)
             .alsoToMat(incoming)(Keep.both)
       ).runWith(Sink.ignore)

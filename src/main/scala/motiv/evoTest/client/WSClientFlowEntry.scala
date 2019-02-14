@@ -23,6 +23,11 @@ import motiv.evoTest.Util._
 import scala.util.Success
 
 // sample run: "runMain motiv.evoTest.client.WSClientFlowEntry 21 40"
+/*
+  This test demonstrates handling notifications from other clients in addition to handling responses from server
+  While the client creates the first half of the tables it receives notifications from other clients.
+  Then the client unsubscribes from notifications and receives server responses only
+ */
 object WSClientFlowEntry extends StreamWrapperApp2 {
 
   override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger:Logger): Future[Any] = {

@@ -37,10 +37,6 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
 
   val CORE_COUNT = 2
 
-  val tables: mutable.ListBuffer[Table] = ListBuffer()
-
-  val adminLoggedInMap = mutable.Map[java.util.UUID, Boolean]()
-
   var subscribers = Set[ActorRef]()
 
   var subscribersToRemove = Set[ActorRef]()
@@ -51,27 +47,28 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
     logger.warn("{} elements passed in {}", countNum, duration.toMillis)
   }
 
-  def decider(router: ActorRef)(implicit logger: Logger): Supervision.Decider = {
+  def decider(router: ActorRef, reqId: UUID)(implicit logger: Logger): Supervision.Decider = {
     case e: JsonParseException ⇒
-      router ! IncomingMessage(InvalidBody(e.getMessage))
+      router ! OutgoingMessage(InvalidBody(e.getMessage))
       Supervision.Resume
     case NonFatal(e) ⇒
       logger.error(e.getMessage, e)
-      router ! IncomingMessage(GeneralException(e.getMessage))
+      router ! OutgoingMessage(GeneralException(e.getMessage))
       Supervision.Stop
   }
 
   override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val routerManager = as.actorOf(Props[RouterManager], "routerManager")
+    val stateHolder = as.actorOf(Props(new StateHolder(routerManager)), "stateHolder")
     val sharedKS = KillSwitches.shared(s"kill-switch")
 
     def flow(reqId: UUID)(implicit logger: Logger): Flow[Message, Message, Any] = {
-      val routerActor = as.actorOf(Props(new RequestRouter(routerManager)), name = s"route-$reqId")
+      val requestRouter = as.actorOf(Props(new RequestRouter(routerManager, stateHolder)), name = s"route-$reqId")
       val incoming = Flow[Message]
         .watchTermination()((_, futDone: Future[Done]) =>
           futDone.onComplete {
             case Success(_) ⇒
-              subscribersToRemove += routerActor
+              subscribersToRemove += requestRouter
             case Failure(t) ⇒ println(s"router flow failed for req: $reqId")
           })
         .collect {
@@ -87,15 +84,14 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
         .zipWithIndex
         //        .zipWithIndex    //3   1 = 2 = 3      2 is the fastest
         .timedIntervalBetween(_._2 % countNum == 0, timeCheck).map(_._1)
-        .map(businessLogic(reqId, routerActor, routerManager))
-        .map(IncomingMessage)
-        .to(Sink.actorRef[IncomingMessage](routerActor, PoisonPill))
-        .withAttributes(ActorAttributes.supervisionStrategy(decider(routerActor)))
+        .map(m => IncomingMessage(m, reqId, requestRouter))
+        .to(Sink.actorRef[IncomingMessage](requestRouter, PoisonPill))
+        .withAttributes(ActorAttributes.supervisionStrategy(decider(requestRouter, reqId)))
       val outgoing: Source[Message, NotUsed] =
-        Source.actorRef[OutgoingMessage](10000, OverflowStrategy.fail)
+        Source.actorRef[OutgoingMessage](100000, OverflowStrategy.fail)
           .mapMaterializedValue { outActor =>
             // give the user actor a way to send messages out
-            routerActor ! Connected(outActor)
+            requestRouter ! Connected(outActor)
             NotUsed
           }.keepAlive(10.seconds, () => OutgoingMessage(Pong(Random.nextInt(100))))
           .mapAsync(CORE_COUNT * 2 - 1)(o => Future.successful(o.obj).map(writeToArray[Outgoing](_)).map(TextMessage(_)))
@@ -136,89 +132,5 @@ object JsoniterWSServerEntry extends StreamWrapperApp2 {
       sharedKS.shutdown
       _.unbind()
     }
-  }
-
-  def insert(list: ListBuffer[Table], after_i: Int, value: Table) = {
-    //      val index = list.indexWhere(_.id == after_i)
-    //      list.take(index + 1) ++ List(value) ++ list.drop(index + 1)
-    list.append(value)
-  }
-
-  def findTableIndex(list: ListBuffer[Table], value: Table): Int = {
-    list.indexWhere(_.id == value.id)
-  }
-
-  def findTableIndex(list: ListBuffer[Table], id: Int): Int = {
-    list.indexWhere(_.id == id
-      //      (if (id > list.size - 1) id - 1 else id)
-    )
-  }
-
-  def updateTableList(list: ListBuffer[Table], value: Table, index: Int): ListBuffer[Table] = {
-    list.take(index) ++ ListBuffer(value) ++ list.drop(index + 1)
-  }
-
-  def sendNotification(routerManager: ActorRef, routerActor: ActorRef, message: Outgoing): Unit = {
-    val common = subscribers.intersect(subscribersToRemove)
-    subscribers = subscribers -- common
-    subscribersToRemove = subscribersToRemove -- common
-    routerManager ! Notification(subscribers - routerActor, message)
-  }
-
-  def businessLogic(reqId: UUID, routerActor: ActorRef, routerManager: ActorRef)(implicit logger: Logger): PartialFunction[Incoming, Outgoing] = {
-    case Login(login, password) if login == "admin" && password == "admin" ⇒
-      adminLoggedInMap += (reqId -> true)
-      //      logger.warn("adminLoggedInMap at login = {}, reqId = {}", adminLoggedInMap, reqId.toString, new Object)
-      LoginSuccessful(usertype = "admin", reqId)
-    case Login(login, password) if login == "user" && password == "user" ⇒
-      LoginSuccessful(usertype = "user", reqId)
-    case Login(login, _) ⇒ LoginFailed(login)
-    case Ping(seq) => Pong(seq)
-    case SubscribeTables =>
-      subscribers += routerActor
-      TableList(tables.map(_.id).take(500), tables.size)
-    case UnsubscribeTables =>
-      subscribers -= routerActor
-      UnsubscribedFromTables
-    case AddTable(t, after_i) => if (adminLoggedInMap(reqId)) {
-      insert(tables, after_i, t)
-      val added = TableAdded(after_i, t, reqId)
-      sendNotification(routerManager, routerActor, added)
-      added
-    }
-    else
-      NotAuthorized("AddTable", reqId)
-    case UpdateTable(t) if adminLoggedInMap(reqId) =>
-      val i = findTableIndex(tables, t)
-      if (i > -1) {
-        updateTableList(tables, t, i)
-        val updated = TableUpdated(t)
-        sendNotification(routerManager, routerActor, updated)
-        updated
-      } else
-        UpdateFailed(t)
-    case RemoveTable(id) if adminLoggedInMap(reqId) =>
-      //       racing cond
-      //       val i = findTableIndex(tables, id)
-      //        if (i > -1) {
-      //          tables.remove(i)
-      //          val removed = TableRemoved(id)
-      //          sendNotification(routerManager, routerActor, removed)
-      //          removed
-      //        } else
-      //          RemoveFailed(id)
-
-      //also racing cond
-      logger.warn("remove t.id {}", Thread.currentThread().getId.toString)
-      
-      if (tables.nonEmpty) {
-        tables.remove(0)
-        val removed = TableRemoved(id)
-        sendNotification(routerManager, routerActor, removed)
-        removed
-      } else
-        RemoveFailed(id)
-    case _: UpdateTable => NotAuthorized("UpdateTable", reqId)
-    case _: RemoveTable => NotAuthorized("RemoveTable", reqId)
   }
 }
