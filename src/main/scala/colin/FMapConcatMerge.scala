@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import ch.qos.logback.classic.Logger
-import util.{StreamWrapperApp, StreamWrapperApp2}
+import util.StreamWrapperApp2
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Random, Success}
 import akka.stream.contrib.Implicits.TimedFlowDsl

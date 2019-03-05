@@ -5,19 +5,20 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{FileIO, Flow, Framing, Keep, Sink, Source}
 import akka.util.ByteString
-import util.StreamWrapperApp
+import ch.qos.logback.classic.Logger
+import util.StreamWrapperApp2
 
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
   * Created by Ilya Volynin on 16.06.2018 at 14:35.
   */
-object readFile2 extends StreamWrapperApp {
+object readFile2 extends StreamWrapperApp2 {
 
   /*
   * counts all the lines in provided files
    */
-  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[Any] = {
+  override def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val lines = Framing.delimiter(
       ByteString("\n"), maximumFrameLength = 1024).map(bs => bs.utf8String)
     // given as stream of Paths we read those files and count the number of lines
@@ -27,7 +28,7 @@ object readFile2 extends StreamWrapperApp {
     // Runs the line counter over the test files, returns a Future, which contains the number of lines, which we then print out to the console when it completes
     val resFuture = testFiles.runWith(lineCounter)
     resFuture.onComplete {
-      case scala.util.Success(value) => println(s"# lines in all files: $value")
+      case scala.util.Success(value) => logger.warn(s"# lines in all files: $value")
     }
     resFuture
   }

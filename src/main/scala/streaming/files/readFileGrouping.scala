@@ -53,7 +53,7 @@ object readFileGrouping extends StreamWrapperApp2 {
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
       => adjust(l, r, 0)(_ + 1)
       ).map(m => {
-      val result = m.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 0).toList.sortWith(_._2 > _._2)
+      val result = m.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 14).toList.sortWith(_._2 > _._2)
       ByteString(result.toString() + "\n")
     }
     )

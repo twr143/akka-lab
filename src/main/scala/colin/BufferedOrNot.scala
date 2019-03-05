@@ -22,14 +22,14 @@ object BufferedOrNot extends StreamWrapperApp2 {
   }
 
   def runAndComplete(f: () => Future[Done], name: String, toComplete: Boolean = false)
-                    (implicit as: ActorSystem, ec: ExecutionContext): Future[Done] = {
+                    (implicit as: ActorSystem, ec: ExecutionContext, logger: Logger): Future[Done] = {
     val start = System.currentTimeMillis()
     val res = f()
     res.onComplete {
       case Success(x) =>
-        println(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
+        logger.warn(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
       case Failure(e) =>
-        println(s"Failure: ${e.getMessage}")
+        logger.warn(s"Failure: ${e.getMessage}")
         as.terminate()
     }
     res
