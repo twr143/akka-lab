@@ -3,11 +3,13 @@ import java.io.FileNotFoundException
 import java.nio.file.{Files, Path, Paths}
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{FileIO, Framing, Keep, Source}
+import akka.stream.javadsl.RunnableGraph
+import akka.stream.{ActorMaterializer, IOResult, scaladsl}
+import akka.stream.scaladsl.{FileIO, Flow, FlowOps, Framing, Keep, Source, SubFlow}
 import akka.util.ByteString
 import ch.qos.logback.classic.Logger
 import util.StreamWrapperApp2
+import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.Random
@@ -74,37 +76,40 @@ object readFileGrouping extends StreamWrapperApp2 {
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0)
       .groupBy(8, _ => random.nextInt(8))
-      .map(_.replaceAll("\"|,|\\.|!|-|\\?", ""))
-      .map(_.replaceAll("ожид", "ожИд"))
-      .map(_.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"))
-      .map(_.replaceAll("Росси.", "Россия"))
-      .map(_.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"))
-      .map(_.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"))
-      .map(_.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"))
-      //      .map(_.replaceAll("СШАо", "США"))
-      .map(_.replaceAll("Путин[а-я]{0,10}", "Путин"))
-      .map(_.replaceAll("Холмс[а-я]", "Холмс"))
-      .map(_.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"))
-      .map(_.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский"))
-      .filter(_.nonEmpty).flatMapConcat(l => Source(l.split("\\s").toList))
+      .mapList(List(_.replaceAll("\"|,|\\.|!|-|\\?", ""),
+        _.replaceAll("ожид", "ожИд"),
+        _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
+        _.replaceAll("Росси.", "Россия"),
+        _.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"),
+        _.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"),
+        _.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"),
+        _.replaceAll("Путин[а-я]{0,10}", "Путин"),
+        _.replaceAll("Холмс[а-я]", "Холмс"),
+        _.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"),
+        _.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский")))
+      .filter(_.toString.nonEmpty).flatMapConcat(l => Source(l.toString.split("\\s").toList))
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
       => adjust(l, r, 0)(_ + 1)
       )
       .async
-      .mergeSubstreams
+      .mergeSubstreams.asInstanceOf[Source[Map[String, Int], Map[String, Int]]]
       .fold(Map.empty[String, Int])((l: Map[String, Int], substreamMap: Map[String, Int]) => {
         l ++ substreamMap.map { case (k, v) => k -> (v + l.getOrElse(k, 0)) }
-      }).map(m => {
-      val result =
-        m.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 14)
-          .toList
-          .sortWith(_._2 > _._2)
-      ByteString(result.toString() + "\n")
-    }
-    )
+      }).map(
+      _.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 14)
+        .toList
+        .sortWith(_._2 > _._2)
+    ).map(m => ByteString(m.toString() + "\n"))
       .alsoToMat(FileIO.toPath(Paths.get("tmp/results.txt")))(Keep.both)
-      .runForeach { b =>
+      .runForeach { (b: ByteString) =>
         logger.warn("aSync: {}", b.utf8String)
       }
   }
+
+  implicit class Util[T, U, V, W](flow: SubFlow[T, U, Source[+?, U], V]) {
+
+    def mapList(listofFunc: List[T ⇒ T]): SubFlow[T, U, Source[+?, U], V] =
+      flow.map(listofFunc.fold(listofFunc.head)((current, next) => current.andThen(next)))
+  }
+
 }
