@@ -16,6 +16,7 @@ import scala.util.Random
 
 /*
 created by Ilya Volynin at 14.12.17
+launch: "runMain streaming.files.readFileGrouping "tmp/zarubezhom.txt" 0"
 */
 object readFileGrouping extends StreamWrapperApp2 {
 
@@ -24,6 +25,17 @@ object readFileGrouping extends StreamWrapperApp2 {
     (a(0), a(1))
   }
 
+  val amendList= List[String => String](_.replaceAll("\"|,|\\.|!|-|\\?", ""),
+          _.replaceAll("ожид", "ожИд"),
+          _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
+          _.replaceAll("Росси.", "Россия"),
+          _.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"),
+          _.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"),
+          _.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"),
+          _.replaceAll("Путин[а-я]{0,10}", "Путин"),
+          _.replaceAll("Холмс[а-я]", "Холмс"),
+          _.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"),
+          _.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский"))
   def adjust[A, B](m: Map[A, B], k: A, DefaultValue: B)(f: B => B): Map[A, B] = m.updated(k, f(m.getOrElse(k, DefaultValue)))
 
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
@@ -43,18 +55,7 @@ object readFileGrouping extends StreamWrapperApp2 {
     val lineByLineSource = FileIO.fromPath(p)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0)
-      .map(_.replaceAll("\"|,|\\.|!|-|\\?", ""))
-      .map(_.replaceAll("ожид", "ожИд"))
-      .map(_.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"))
-      .map(_.replaceAll("Росси.", "Россия"))
-      .map(_.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"))
-      .map(_.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"))
-      .map(_.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"))
-      //      .map(_.replaceAll("СШАо", "США"))
-      .map(_.replaceAll("Путин[а-я]{0,10}", "Путин"))
-      .map(_.replaceAll("Холмс[а-я]", "Холмс"))
-      .map(_.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"))
-      .map(_.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский"))
+      .map(amendList)
     lineByLineSource.filter(_.nonEmpty).flatMapConcat(l => Source(l.split("\\s").toList)
     )
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
@@ -76,17 +77,8 @@ object readFileGrouping extends StreamWrapperApp2 {
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0)
       .groupBy(8, _ => random.nextInt(8))
-      .mapList(List(_.replaceAll("\"|,|\\.|!|-|\\?", ""),
-        _.replaceAll("ожид", "ожИд"),
-        _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
-        _.replaceAll("Росси.", "Россия"),
-        _.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"),
-        _.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"),
-        _.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"),
-        _.replaceAll("Путин[а-я]{0,10}", "Путин"),
-        _.replaceAll("Холмс[а-я]", "Холмс"),
-        _.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"),
-        _.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский")))
+      //      .mapList(
+      .map(amendList)
       .filter(_.toString.nonEmpty).flatMapConcat(l => Source(l.toString.split("\\s").toList))
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
       => adjust(l, r, 0)(_ + 1)
@@ -105,6 +97,9 @@ object readFileGrouping extends StreamWrapperApp2 {
         logger.warn("aSync: {}", b.utf8String)
       }
   }
+
+  implicit def chain[T](listofFunc: List[T ⇒ T]): T => T =
+    listofFunc.fold(listofFunc.head)((current, next) => current.andThen(next))
 
   implicit class Util[T, U, V, W](flow: SubFlow[T, U, Source[+?, U], V]) {
 
