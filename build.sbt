@@ -56,6 +56,7 @@ libraryDependencies ++= Seq(
   "com.google.jimfs"  %  "jimfs"               % "1.1"  % Test,  // ApacheV2
   "com.miguno.akka" % "akka-mock-scheduler_2.12" % "0.5.1" % Test
 )
+addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 
 //libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"

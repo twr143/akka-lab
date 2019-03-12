@@ -20,11 +20,6 @@ launch: "runMain streaming.files.readFileGrouping "tmp/zarubezhom.txt" 0"
 */
 object readFileGrouping extends StreamWrapperApp2 {
 
-  def extractId(s: String): (String, String) = {
-    val a = s.split(",")
-    (a(0), a(1))
-  }
-
   val amendList= List[String => String](_.replaceAll("\"|,|\\.|!|-|\\?", ""),
           _.replaceAll("ожид", "ожИд"),
           _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
