@@ -45,6 +45,19 @@ libraryDependencies ++= Seq(
 unmanagedSourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/scala")
 unmanagedSourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/java")
 unmanagedResourceDirectories in Compile += file(baseDirectory.value + "/src-ext/contrib/src/main/resources")
+unmanagedSourceDirectories in Test += file(baseDirectory.value + "/src-ext/contrib/src/test/scala")
+unmanagedSourceDirectories in Test += file(baseDirectory.value + "/src-ext/contrib/src/test/java")
+unmanagedResourceDirectories in Test += file(baseDirectory.value + "/src-ext/contrib/src/test/resources")
+
+libraryDependencies ++= Seq(
+  "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % "provided",
+  "junit"             %  "junit"               % "4.12" % Test, // Common Public License 1.0
+  "com.novocode"      %  "junit-interface"     % "0.11" % Test, // BSD-like
+  "com.google.jimfs"  %  "jimfs"               % "1.1"  % Test,  // ApacheV2
+  "com.miguno.akka" % "akka-mock-scheduler_2.12" % "0.5.1" % Test
+)
+
+
 //libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
 
 val sampleTask = taskKey[Int]("sample")
