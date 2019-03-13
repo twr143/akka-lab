@@ -5,14 +5,14 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.javadsl.RunnableGraph
 import akka.stream.{ActorMaterializer, IOResult, scaladsl}
-import akka.stream.scaladsl.{FileIO, Flow, FlowOps, Framing, Keep, Source, SubFlow}
+import akka.stream.scaladsl.{FileIO, Flow, FlowOps, Framing, Keep, Sink, Source, SubFlow}
 import akka.util.ByteString
 import ch.qos.logback.classic.Logger
 import util.StreamWrapperApp2
 import scala.annotation.unchecked.uncheckedVariance
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.{Random, Success}
 
 /*
 created by Ilya Volynin at 14.12.17
@@ -20,17 +20,19 @@ launch: "runMain streaming.files.readFileGrouping "tmp/zarubezhom.txt" 0"
 */
 object readFileGrouping extends StreamWrapperApp2 {
 
-  val amendList= List[String => String](_.replaceAll("\"|,|\\.|!|-|\\?", ""),
-          _.replaceAll("ожид", "ожИд"),
-          _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
-          _.replaceAll("Росси.", "Россия"),
-          _.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"),
-          _.replaceAll("(г|Г)(о|О)(И|и|йс)[а-я]{0,19}", "гои_"),
-          _.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"),
-          _.replaceAll("Путин[а-я]{0,10}", "Путин"),
-          _.replaceAll("Холмс[а-я]", "Холмс"),
-          _.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"),
-          _.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский"))
+  val amendList = List[String => String](_.replaceAll("\"|,|\\.|!|-|\\?", ""),
+    //    _.replaceAll("https?:\\/\\/(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%_\\+.~#?&//=]*)", ""),
+    _.replaceAll("ожид", "ожИд"),
+    _.replaceAll("(НЕ)?(ж|Ж)(и|ы)д[а-я]{1,15}", "жыды"),
+    _.replaceAll("(Р|р)осси[а-я]{1,19}", "Россия"),
+    _.replaceAll("(е|Е)вре[а-я]{1,19}", "евреи"),
+    _.replaceAll("(г|Г)(о|О)(И|и|я|е|йс)[а-я]{0,19}", "гои_"),
+    _.replaceAll("(а|А|A)(мерик|meric)([а-я]|[a-z]){1,19}", "США"),
+    _.replaceAll("Путин[а-я]{0,10}", "Путин"),
+    _.replaceAll("Холмс[а-я]", "Холмс"),
+    _.replaceAll("(и|И)(з|З)раил[а-я]{1,19}", "Израиль"),
+    _.replaceAll("(русс|РУСС|Русс)([а-я]|[А-Я]){1,19}", "русский"))
+
   def adjust[A, B](m: Map[A, B], k: A, DefaultValue: B)(f: B => B): Map[A, B] = m.updated(k, f(m.getOrElse(k, DefaultValue)))
 
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
@@ -43,14 +45,17 @@ object readFileGrouping extends StreamWrapperApp2 {
       as.terminate()
       return Future.failed(new FileNotFoundException(p.toAbsolutePath.toString))
     }
-    if (bSync == 1) syncProcessing(p) else aSyncProcessing(p)
+    val amendFunc: String => String = chain(amendList)
+    if (bSync == 1) syncProcessing(p, amendFunc)
+    else if (bSync == 2) readOnly(p)
+    else aSyncProcessing(p, amendFunc)
   }
 
-  def syncProcessing(p: Path)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
+  def syncProcessing(p: Path, amendFunc: String => String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
     val lineByLineSource = FileIO.fromPath(p)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0)
-      .map(amendList)
+      .map(amendFunc)
     lineByLineSource.filter(_.nonEmpty).flatMapConcat(l => Source(l.split("\\s").toList)
     )
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
@@ -66,24 +71,24 @@ object readFileGrouping extends StreamWrapperApp2 {
       }
   }
 
-  def aSyncProcessing(p: Path)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
+  def aSyncProcessing(p: Path, amendFunc: String => String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
     val random = new Random()
     FileIO.fromPath(p)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0)
       .groupBy(8, _ => random.nextInt(8))
       //      .mapList(
-      .map(amendList)
+      .map(amendFunc)
       .filter(_.toString.nonEmpty).flatMapConcat(l => Source(l.toString.split("\\s").toList))
       .fold(Map.empty[String, Int])((l: Map[String, Int], r: String)
       => adjust(l, r, 0)(_ + 1)
       )
       .async
-      .mergeSubstreams.asInstanceOf[Source[Map[String, Int], Map[String, Int]]]
+      .mergeSubstreams
       .fold(Map.empty[String, Int])((l: Map[String, Int], substreamMap: Map[String, Int]) => {
         l ++ substreamMap.map { case (k, v) => k -> (v + l.getOrElse(k, 0)) }
       }).map(
-      _.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 14)
+      _.filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 9)
         .toList
         .sortWith(_._2 > _._2)
     ).map(m => ByteString(m.toString() + "\n"))
@@ -93,9 +98,18 @@ object readFileGrouping extends StreamWrapperApp2 {
       }
   }
 
-  implicit def chain[T](listofFunc: List[T ⇒ T]): T => T =
+  def chain[T](listofFunc: List[T ⇒ T]): T => T =
     listofFunc.fold(listofFunc.head)((current, next) => current.andThen(next))
 
+  def readOnly(p: Path)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
+    val fut = FileIO.fromPath(p)
+      .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
+      .map(_.utf8String).map(_.trim).filter(_.length > 0).zipWithIndex.runWith(Sink.last)
+    fut.onComplete { case Success(r) => logger.warn("reading done, last elem {}", r) }
+    fut
+  }
+
+  //  not used
   implicit class Util[T, U, V, W](flow: SubFlow[T, U, Source[+?, U], V]) {
 
     def mapList(listofFunc: List[T ⇒ T]): SubFlow[T, U, Source[+?, U], V] =

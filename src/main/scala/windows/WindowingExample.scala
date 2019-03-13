@@ -1,13 +1,11 @@
 package windows
 import java.time._
 import java.util.TimeZone
-
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
 import ch.qos.logback.classic.Logger
 import util.StreamWrapperApp2
-
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -23,13 +21,13 @@ object WindowingExample extends StreamWrapperApp2 {
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val random = new Random()
     val f = Source
-      .tick(0.seconds, 1.second, "") .take(20)
+      .tick(0.seconds, 300.millis, "").take(10)
       .map { _ =>
-      val now = System.currentTimeMillis()
-      val delay = random.nextInt(8)
-      val id = random.nextInt(3) % 3
-      MyEvent(now - delay * 1000L, id)
-    }
+        val now = System.currentTimeMillis()
+        val delay = random.nextInt(5)
+        val id = random.nextInt(3) % 3
+        MyEvent(now - delay * 1000L, id)
+      }
       .statefulMapConcat { () =>
         //        println(s"statefulMapConcat called")
         val generator = new CommandGenerator()
@@ -42,33 +40,39 @@ object WindowingExample extends StreamWrapperApp2 {
       .fold(AggregateEventData((0L, 0L, 0L), 0)) {
         case (agg, OpenWindow(window, id)) =>
 
-          logger.warn(s"open w for ${windowToText(window)}, $id, current ${tsToString(System.currentTimeMillis())}")
+          logger.warn(s"open w for ${Window.windowToText(window)}, current ${tsToString(System.currentTimeMillis())}")
           agg.copy(w = window)
-        case (agg, CloseWindow(window, id)) =>
+        case (agg, CloseWindow(window, id, ev)) =>
 
-          logger.warn(s"close w for ${windowToText(window)}, $id, current ${tsToString(System.currentTimeMillis())}")
+          logger.warn(s"close w for ${Window.windowToText(window)}, ev $ev,  current ${tsToString(System.currentTimeMillis())}")
+          logger.warn("")
           agg
         case (agg, AddToWindow(ev, window, id)) =>
-          logger.warn(s"add to w ${windowToText(window)}, $id, ev: $ev, th ${Thread.currentThread().getId}, current ${tsToString(System.currentTimeMillis())}")
+          logger.warn(s"add to w ${Window.windowToText(window)}, $id, ev: $ev, th ${Thread.currentThread().getId}, current ${tsToString(System.currentTimeMillis())}")
+          logger.warn("")
           agg.copy(eventCount = agg.eventCount + 1)
       }
       .async
       .mergeSubstreams
       .runForeach { agg =>
         logger.warn(agg.toString)
+        logger.warn("")
       }
     f
   }
+
   case class MyEvent(timestamp: Long, id: Long) {
 
     override def toString: String = s"${tsToString(timestamp)}, $id"
   }
+
   type Window = (Long, Long, Long)
+
   object Window {
 
-    val WindowLength = 10.seconds.toMillis
+    val WindowLength = 3.seconds.toMillis
 
-    val WindowStep = 10.second.toMillis
+    val WindowStep = 3.second.toMillis
 
     val WindowsPerEvent = (WindowLength / WindowStep).toInt
 
@@ -80,23 +84,28 @@ object WindowingExample extends StreamWrapperApp2 {
         ).toSet
       result
     }
+
+    def windowToText(w: Window): String = {
+      s" [ ${tsToString(w._1)},${tsToString(w._2)},${w._3} ] "
+    }
   }
-  def windowToText(w: Window): String = {
-    val zoneId = TimeZone.getDefault.toZoneId
-    s" [ ${tsToString(w._1)},${tsToString(w._2)} ] "
-  }
+
   sealed trait WindowCommand {
 
     def eventId: Long
 
     def w: Window
   }
+
   case class OpenWindow(w: Window, eventId: Long) extends WindowCommand
-  case class CloseWindow(w: Window, eventId: Long) extends WindowCommand
+
+  case class CloseWindow(w: Window, eventId: Long, event: MyEvent) extends WindowCommand
+
   case class AddToWindow(ev: MyEvent, w: Window, eventId: Long) extends WindowCommand
+
   class CommandGenerator {
 
-    private val MaxDelay = 5.seconds.toMillis
+    private val MaxDelay = 2.seconds.toMillis
 
     private var watermark = 0L
 
@@ -106,17 +115,18 @@ object WindowingExample extends StreamWrapperApp2 {
       watermark = math.max(watermark, ev.timestamp - MaxDelay)
       //      println(s"watermark for $ev is ${tsToString(watermark)}, cur ${tsToString(System.currentTimeMillis())}")
       if (ev.timestamp < watermark) {
-        logger.warn(s"Dropping event with timestamp: ${tsToString(ev.timestamp)}, wm: $watermark")
-        Nil
+        logger.warn(s"Dropping event with timestamp: ${tsToString(ev.timestamp)}, wm: ${tsToString(watermark)}")
+        logger.warn("")
+        List.empty
       } else {
         val eventWindows = Window.windowsFor(ev.timestamp, ev.id)
         val closeCommands = openWindows.flatMap { ow =>
           if (!eventWindows.contains(ow) && ow._2 < watermark) {
             openWindows.remove(ow)
-            Some(CloseWindow(ow, eventId = ow._3))
+            Some(CloseWindow(ow, eventId = ow._3, ev))
           } else None
         }
-        //        println(s"closeCommands for $ev: $closeCommands")
+        //        logger.warn(s"eventW: $eventWindows, openW: $openWindows")
         val openCommands = eventWindows.flatMap { w =>
           if (!openWindows.contains(w)) {
             openWindows.add(w)
@@ -130,11 +140,13 @@ object WindowingExample extends StreamWrapperApp2 {
       }
     }
   }
+
   case class AggregateEventData(w: Window, eventCount: Int) {
 
     override def toString =
       s"Between ${tsToString(w._1)} and ${tsToString(w._2)}, ${w._3}, there were $eventCount events."
   }
+
   def tsToString(ts: Long) = OffsetDateTime
     .ofInstant(Instant.ofEpochMilli(ts), ZoneId.systemDefault())
     .toLocalTime
