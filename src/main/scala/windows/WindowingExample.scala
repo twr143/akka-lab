@@ -21,7 +21,7 @@ object WindowingExample extends StreamWrapperApp2 {
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Any] = {
     val random = new Random()
     val f = Source
-      .tick(0.seconds, 300.millis, "").take(10)
+      .tick(0.seconds, 300.millis, "").take(20)
       .map { _ =>
         val now = System.currentTimeMillis()
         val delay = random.nextInt(5)
@@ -105,7 +105,7 @@ object WindowingExample extends StreamWrapperApp2 {
 
   class CommandGenerator {
 
-    private val MaxDelay = 2.seconds.toMillis
+    private val MaxDelay = 1.seconds.toMillis
 
     private var watermark = 0L
 
@@ -121,7 +121,7 @@ object WindowingExample extends StreamWrapperApp2 {
       } else {
         val eventWindows = Window.windowsFor(ev.timestamp, ev.id)
         val closeCommands = openWindows.flatMap { ow =>
-          if (!eventWindows.contains(ow) && ow._2 < watermark) {
+          if (ow._2 < watermark) {
             openWindows.remove(ow)
             Some(CloseWindow(ow, eventId = ow._3, ev))
           } else None
