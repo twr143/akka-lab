@@ -1,4 +1,5 @@
-package kafka
+package integration.kafka
+
 import akka.kafka.ConsumerMessage.{CommittableMessage, CommittableOffsetBatch}
 import akka.kafka._
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}

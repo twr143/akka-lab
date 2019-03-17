@@ -1,4 +1,5 @@
-package kafka.ser_on.jsoniter
+package integration.kafka.ser_on.jsoniter
+
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import ch.qos.logback.classic.{Level, Logger}

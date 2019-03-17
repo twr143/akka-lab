@@ -1,4 +1,5 @@
-package kafka
+package integration.kafka
+
 import java.util
 
 import akka.actor.ActorSystem

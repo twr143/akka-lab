@@ -1,4 +1,5 @@
-package kafka.ser_on.jsoniter
+package integration.kafka.ser_on.jsoniter
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ConsumerMessage.{CommittableMessage, CommittableOffsetBatch}
@@ -10,7 +11,7 @@ import akka.stream.scaladsl.{Keep, Sink}
 import ch.qos.logback.classic.Logger
 import com.github.plokhotnyuk.jsoniter_scala.core.JsonParseException
 import com.typesafe.config.Config
-import kafka.ser_on.jsoniter.Model._
+import Model._
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, StringDeserializer}

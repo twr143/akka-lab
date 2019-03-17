@@ -1,4 +1,4 @@
-package kafka.ser_on.jsoniter
+package integration.kafka.ser_on.jsoniter
 
 import com.github.plokhotnyuk.jsoniter_scala.core._
 import com.ovoenergy.kafka.serialization.core._

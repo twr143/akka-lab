@@ -19,6 +19,9 @@ libraryDependencies ++= Seq(
   "joda-time" % "joda-time" % "2.7",
   "com.typesafe.akka" %% "akka-stream-kafka" % "0.22",
   "com.github.dnvriend" %% "akka-persistence-inmemory" % "2.5.1.1" % Test,
+  "com.lightbend.akka" %% "akka-stream-alpakka-mongodb" % "1.0-M3",
+  "org.mongodb" % "mongodb-driver-reactivestreams" % "1.11.0",
+  "org.mongodb.scala" %% "mongo-scala-driver" % "2.6.0"
 )
 
 libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % akkaVersion
@@ -31,9 +34,9 @@ libraryDependencies += compilerPlugin(
 libraryDependencies ++= {
   val kafkaSerializationV = "0.3.11" // see the Maven badge above for the latest version
   Seq(
-    "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV//,
-//    "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
-//    "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
+    "com.ovoenergy" %% "kafka-serialization-core" % kafkaSerializationV //,
+    //    "com.ovoenergy" %% "kafka-serialization-circe" % kafkaSerializationV, // To provide Circe JSON support
+    //    "com.ovoenergy" %% "kafka-serialization-json4s" % kafkaSerializationV // To provide Json4s JSON support
   )
 }
 
@@ -51,16 +54,15 @@ unmanagedResourceDirectories in Test += file(baseDirectory.value + "/src-ext/con
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-stream-testkit" % akkaVersion % "provided",
-  "junit"             %  "junit"               % "4.12" % Test, // Common Public License 1.0
-  "com.novocode"      %  "junit-interface"     % "0.11" % Test, // BSD-like
-  "com.google.jimfs"  %  "jimfs"               % "1.1"  % Test,  // ApacheV2
+  "junit" % "junit" % "4.12" % Test, // Common Public License 1.0
+  "com.novocode" % "junit-interface" % "0.11" % Test, // BSD-like
+  "com.google.jimfs" % "jimfs" % "1.1" % Test, // ApacheV2
   "com.miguno.akka" % "akka-mock-scheduler_2.12" % "0.5.1" % Test
 )
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 
 //libraryDependencies += "com.typesafe.akka" %% "akka-stream-contrib" % "0.6"
-
 val sampleTask = taskKey[Int]("sample")
 sampleTask := {
   println(s"sbtVersion=${sbtVersion.value}")

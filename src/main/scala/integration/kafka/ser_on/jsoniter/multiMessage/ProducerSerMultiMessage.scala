@@ -1,9 +1,11 @@
-package kafka.ser_on.jsoniter.multiMessage
+package integration.kafka.ser_on.jsoniter.multiMessage
+
 /**
   * Created by Ilya Volynin on 13.09.2018 at 15:05.
   */
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.ProducerMessage.MultiResultPart
@@ -13,13 +15,16 @@ import akka.stream.scaladsl.{Sink, Source}
 import akka.stream.{ActorMaterializer, ThrottleMode}
 import ch.qos.logback.classic.Logger
 import com.typesafe.config.Config
-import kafka.ser_on.jsoniter.Model.{SerializationBeanJsoniter, SerializationBeanJsoniter3, SerializationBeanJsoniterBase}
-import kafka.ser_on.jsoniter.{KafkaSerJsoniter, KafkaProducerStreamWrapper}
+import integration.kafka.ser_on.jsoniter.{KafkaProducerStreamWrapper, KafkaSerJsoniter}
+import integration.kafka.ser_on.jsoniter.{KafkaProducerStreamWrapper, KafkaSerJsoniter}
+import integration.kafka.ser_on.jsoniter.Model.{SerializationBeanJsoniter, SerializationBeanJsoniter3, SerializationBeanJsoniterBase}
+import integration.kafka.ser_on.jsoniter.{KafkaProducerStreamWrapper, KafkaSerJsoniter}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.FiniteDuration
-import kafka.ser_on.jsoniter.Model._
+import integration.kafka.ser_on.jsoniter.Model._
 
 /**
   * Created by Ilya Volynin on 13.09.2018 at 9:08.
@@ -43,7 +48,7 @@ object ProducerSerMultiMessage extends KafkaProducerStreamWrapper {
   }
 
   def body(args: Array[String])(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger, config: Config): Future[Any] = {
-    import kafka.ser_on.jsoniter.KafkaSerJsoniter._
+    import integration.kafka.ser_on.jsoniter.KafkaSerJsoniter._
     val producerSettings =
       ProducerSettings(config, new StringSerializer, KafkaSerJsoniter.jsoniterScalaSerializer()).withBootstrapServers("localhost:9092")
     Source.fromIterator(() => Iterator.range(1500, 1505)).throttle(10, FiniteDuration(1, TimeUnit.SECONDS), 10, ThrottleMode.shaping).

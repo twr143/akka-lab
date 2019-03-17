@@ -1,4 +1,5 @@
-package kafka.ser_on.jsoniter
+package integration.kafka.ser_on.jsoniter
+
 import akka.Done
 import akka.actor.ActorSystem
 import akka.kafka.scaladsl.Consumer.DrainingControl
