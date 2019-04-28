@@ -4,7 +4,7 @@ version := "1.0"
 
 scalaVersion := "2.12.2"
 
-lazy val akkaVersion = "2.5.13"
+lazy val akkaVersion = "2.5.21"
 
 resolvers += Resolver.jcenterRepo
 resolvers += Resolver.bintrayRepo("ovotech", "maven")
@@ -59,6 +59,7 @@ libraryDependencies ++= Seq(
   "com.google.jimfs" % "jimfs" % "1.1" % Test, // ApacheV2
   "com.miguno.akka" % "akka-mock-scheduler_2.12" % "0.5.1" % Test
 )
+libraryDependencies += "com.github.pathikrit" %% "better-files" % "3.7.1"
 addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.9")
 
 

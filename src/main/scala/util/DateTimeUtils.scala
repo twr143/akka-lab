@@ -12,11 +12,11 @@ import org.joda.time.format.DateTimeFormat
 object DateTimeUtils {
 
   implicit val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-  implicit val jodaFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
+  val jodaFormatter = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss")
 
   def currentODT: String = OffsetDateTime.now().format(formatter)
 
-  def fromDateTime(date: DateTime): String = jodaFormatter.print(date)
+  implicit def fromDateTime(date: DateTime): String = jodaFormatter.print(date)
 
 
 }

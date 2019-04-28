@@ -1,6 +1,4 @@
 package integration.mongo
-import util.DateTimeUtils._
-
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
@@ -16,7 +14,6 @@ import util.StreamWrapperApp2
 import org.mongodb.scala.bson.codecs.DEFAULT_CODEC_REGISTRY
 import org.mongodb.scala.bson.codecs.Macros._
 import org.mongodb.scala.model.{Filters, Updates}
-
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Random
 
@@ -24,10 +21,11 @@ import scala.util.Random
   * Created by Ilya Volynin on 17.03.2019 at 15:41.
   */
 object ComplexCollEntry extends StreamWrapperApp2 {
+  import util.DateTimeUtils._
 
-  case class ComplexBean(value: Int, date: DateTime){
+  case class ComplexBean(value: Int, date: DateTime) {
 
-    override def toString: String = s"[$value, ${(fromDateTime(date))}]"
+    override def toString: String = s"[$value, ${fromDateTime(date)}]"
   }
 
   val codecRegistry = fromRegistries(
@@ -35,7 +33,7 @@ object ComplexCollEntry extends StreamWrapperApp2 {
     CodecRegistries.fromCodecs(new JodaCodec),
     DEFAULT_CODEC_REGISTRY
   )
-  
+
   private val client = MongoClients.create("mongodb://localhost:27017")
 
   private val db = client.getDatabase("MongoSourceSpec")
@@ -59,24 +57,17 @@ object ComplexCollEntry extends StreamWrapperApp2 {
         MongoSource(complColl.find(Filters.notEqual("value", 12), classOf[ComplexBean]))
       source.runForeach(n => logger.warn(n.toString))
     } else if (action == "update") {
-      val source = Source.single(5).map(
-        i => DocumentUpdate(filter = Filters.eq("_id", i),
+      val source = Source(5 to 6).map(
+        i => DocumentUpdate(filter = Filters.eq("value", i),
           update = Updates.set("value", i * -1))
       )
-      source.runWith(MongoSink.updateOne(complColl))
+      source.runWith(MongoSink.updateMany(complColl))
     } else if (action == "delete") {
-      val source = Source(1 to 10).map(i => Filters.eq("_id", i))
-      source.runWith(MongoSink.deleteMany(complColl))
+      val source = Source(1 to 10).map(i => Filters.or(
+        Filters.eq("value", i),
+        Filters.eq("value", -i)))
+        source.runWith(MongoSink.deleteMany(complColl))
     }
-    //    } else if (action == "createAndTransfer") {
-    //      val source = Source(1 to 10).map(i => ComplexBean(i, OffsetDateTime.now().minusSeconds(random.nextInt(8))))
-    //      val source2: Source[Number, NotUsed] =
-    //        MongoSource(complColl.find(classOf[Number]))
-    //      for {
-    //        _ <- source.runWith(MongoSink.insertOne(complColl))
-    //        r <- source2.runWith(MongoSink.insertOne(complColl))
-    //      } yield r
-    //    }
     else {
       Future.failed(new IllegalArgumentException(s" illegal action $action"))
     }
