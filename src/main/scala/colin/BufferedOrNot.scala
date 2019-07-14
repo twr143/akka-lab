@@ -6,7 +6,6 @@ import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.stream.scaladsl.{Sink, Source}
 import ch.qos.logback.classic.Logger
 import util.StreamWrapperApp2
-
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 import scala.util.{Failure, Random, Success}
@@ -24,15 +23,13 @@ object BufferedOrNot extends StreamWrapperApp2 {
   def runAndComplete(f: () => Future[Done], name: String, toComplete: Boolean = false)
                     (implicit as: ActorSystem, ec: ExecutionContext, logger: Logger): Future[Done] = {
     val start = System.currentTimeMillis()
-    val res = f()
-    res.onComplete {
+    f().andThen {
       case Success(x) =>
         logger.warn(s"$name successfully completed in: ${System.currentTimeMillis() - start}")
       case Failure(e) =>
         logger.warn(s"Failure: ${e.getMessage}")
         as.terminate()
     }
-    res
   }
 
   def uniformRandomSpin(value: Int)(implicit as: ActorSystem, ec: ExecutionContext): Future[Int] = Future {

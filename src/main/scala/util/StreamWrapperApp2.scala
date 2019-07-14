@@ -30,14 +30,12 @@ object StreamWrapperApp2 {
 
   def timeCheckWrapper(f: () => Future[Done], name: String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger): Future[Done] = {
     val start = System.currentTimeMillis()
-    val res = f()
-    res.onComplete {
+    f().andThen {
       case Success(x) =>
         logger.warn("{} completed for: {} ms", name.padTo(35,' '), (System.currentTimeMillis() - start).toString.padTo(5,' '), new Object)
       case Failure(e) =>
         logger.error("Failure: {}", e.getMessage)
         as.terminate()
     }
-    res
   }
 }

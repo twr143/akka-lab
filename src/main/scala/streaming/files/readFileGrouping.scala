@@ -1,6 +1,6 @@
 package streaming.files
 import java.io.FileNotFoundException
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
@@ -53,7 +53,7 @@ object readFileGrouping extends StreamWrapperApp2 {
     val amendFunc: String => String = chain(amendList)
     if (bSync == 1) syncProcessing(p, amendFunc)
     else if (bSync == 2) readOnly(p)
-    else if (bSync == 3) Future(syncProcessingBetterFiles(p,amendFunc))
+    else if (bSync == 3) Future(syncProcessingBetterFiles(p, amendFunc))
     else aSyncProcessing(p, amendFunc)
   }
 
@@ -76,6 +76,7 @@ object readFileGrouping extends StreamWrapperApp2 {
         logger.warn("sync: {}", b.utf8String)
       }
   }
+
   def syncProcessingBetterFiles(p: Path, amendFunc: String => String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
     val lineByLineSource = ScalaFile(p).lineIterator(Charset.forName("UTF-8"))
       .map(_.trim).filter(_.length > 0)
@@ -84,10 +85,12 @@ object readFileGrouping extends StreamWrapperApp2 {
       .foldLeft(Map.empty[String, Int])((l: Map[String, Int], r: String)
       => adjust(l, r, 0)(_ + 1)
       ).filter(p => (p._1.length > 3 || (p._1.toUpperCase == p._1 && p._1.length == 3)) && p._2 > 14).toList.sortWith(_._2 > _._2)
-    ScalaFile(Paths.get("tmp/results.txt")).write(stats.toString())
+    ScalaFile(Paths.get("tmp/results.txt")).write(stats.toString())(
+      openOptions = Seq(StandardOpenOption.CREATE),
+      charset = UnicodeCharset(Charset.forName("UTF-8"))
+    )
     logger.warn("sync b f: {}", stats)
   }
-
 
   def aSyncProcessing(p: Path, amendFunc: String => String)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
     val random = new Random()
@@ -120,11 +123,10 @@ object readFileGrouping extends StreamWrapperApp2 {
     listofFunc.fold(listofFunc.head)((current, next) => current.andThen(next))
 
   def readOnly(p: Path)(implicit as: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext, logger: Logger) = {
-    val fut = FileIO.fromPath(p)
+    FileIO.fromPath(p)
       .via(Framing.delimiter(ByteString("\n"), maximumFrameLength = 32568, allowTruncation = true))
       .map(_.utf8String).map(_.trim).filter(_.length > 0).zipWithIndex.runWith(Sink.last)
-    fut.onComplete { case Success(r) => logger.warn("reading done, last elem {}", r) }
-    fut
+      .andThen { case Success(r) => logger.warn("reading done, last elem {}", r) }
   }
 
   //  not used

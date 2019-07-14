@@ -31,11 +31,11 @@ object StatefulMapConcatTest extends StreamWrapperApp2 {
     val f = Source(identValues1)
       .via(stateFlow)
       .runWith(Sink.seq)
-    f.onComplete { case Success(identValue) => logger.warn(identValue.toString()); logger.warn(s"ids=$ids") }
+    .andThen { case Success(identValue) => logger.warn(identValue.toString()); logger.warn(s"ids=$ids") }
     val g = Source(identValues2)
       .via(stateFlow)
       .runWith(Sink.seq)
-    g.onComplete { case Success(identValue) => logger.warn(identValue.toString()); logger.warn(s"ids=$ids") }
+      .andThen { case Success(identValue) => logger.warn(identValue.toString()); logger.warn(s"ids=$ids") }
     Future.sequence(List(f, g))
   }
 }

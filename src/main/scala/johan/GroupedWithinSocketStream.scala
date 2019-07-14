@@ -46,8 +46,7 @@ object GroupedWithinSocketStream extends StreamWrapperApp2 {
           handleWebSocketMessages(measurementsFlow)
         }
       }
-    val futureBinding = Http().bindAndHandle(route, "127.0.0.1", 8080)
-    futureBinding.onComplete {
+    val futureBinding = Http().bindAndHandle(route, "127.0.0.1", 8080).andThen {
       case Success(binding) =>
         val address = binding.localAddress
         logger.warn(s"Akka HTTP server running at ${address.getHostString}:${address.getPort}")

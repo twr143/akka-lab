@@ -26,10 +26,9 @@ object readFile2 extends StreamWrapperApp2 {
     // Here's our test data source (replace paths with real paths)
     val testFiles = Source(List("tmp/ungrouped.csv", "tmp/example.csv").map(new File(_).toPath)).flatMapConcat(FileIO.fromPath(_)).via(lines)
     // Runs the line counter over the test files, returns a Future, which contains the number of lines, which we then print out to the console when it completes
-    val resFuture = testFiles.runWith(lineCounter)
-    resFuture.onComplete {
+    testFiles.runWith(lineCounter)
+    .andThen{
       case scala.util.Success(value) => logger.warn(s"# lines in all files: $value")
     }
-    resFuture
   }
 }

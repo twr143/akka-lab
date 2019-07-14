@@ -31,7 +31,7 @@ trait KafkaConsumerStreamWrapper {
     implicit val config: Config = ConfigFactory.load().getConfig("akka.kafka.consumer")
     val control = body(args)
     as.scheduler.scheduleOnce(3000.millis)({
-      control.drainAndShutdown().onComplete {
+      control.drainAndShutdown().andThen {
             case Failure(e) =>
               root.error(e.getMessage, e)
               as.terminate()

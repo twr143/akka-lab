@@ -45,8 +45,8 @@ object GetUrlStream extends StreamWrapperApp2 {
           )
         }
       }
-    val futureBinding = Http().bindAndHandle(route, "localhost", 8080)
-    futureBinding.onComplete {
+    Http().bindAndHandle(route, "localhost", 8080)
+    .andThen {
       case Success(binding) =>
         val address = binding.localAddress
         logger.warn("Akka HTTP server running at {}:{}", address.getHostString, address.getPort)

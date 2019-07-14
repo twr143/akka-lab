@@ -42,9 +42,12 @@ class ShoppingCartActor(id: String) extends PersistentActor with ActorLogging {
 
   override def receiveRecover: Receive = {
     case ItemAdded(item) =>
+      log.info("receiveRecover {} added, thread {}", item, Thread.currentThread().getId)
       state = item +: state
       context.become(initialized)
-    case evt: ShoppingCartEvent => state = applyEvent(evt)
+    case evt: ShoppingCartEvent =>
+      log.info("receiveRecover {} evt, thread {}", evt, Thread.currentThread().getId)
+      state = applyEvent(evt)
     case RecoveryCompleted =>
 //      log.info("Recovery completed!")
   }
