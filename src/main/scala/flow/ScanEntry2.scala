@@ -17,10 +17,13 @@ object ScanEntry2 extends StreamWrapperApp2 {
         .take(6)
     val flow =
       Flow[Int]
-        .zipWith(Source.fromIterator(() => Iterator.from(1))) {
+        .zipWith(Source.fromIterator(() => Iterator.from(1)).map(_ * 2)) {
           (ori, idx) => (ori, idx)
         }
-        .scan((0, 0))((aggr, array) => (array._1, aggr._2 + array._2))
+        .scan((0, 0))((aggr, array) => {
+          logger.warn(s"aggr: ${aggr.toString()} array[2]: ${array._2}")
+          (array._1, aggr._2 + array._2)
+        })
     someNumbers.via(flow).runWith(Sink.foreach(a => logger.warn(a.toString())))
   }
 }

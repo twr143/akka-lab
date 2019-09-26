@@ -3,12 +3,10 @@ package supervision
 created by Ilya Volynin at 25.01.18
 */
 import java.util.UUID
-
 import akka.{Done, NotUsed}
 import akka.actor._
 import akka.pattern.Patterns.after
 import akka.pattern.{Backoff, BackoffSupervisor}
-
 import scala.concurrent.duration._
 import akka.pattern._
 import akka.stream.{ActorMaterializer, ThrottleMode}
@@ -16,7 +14,6 @@ import akka.stream.scaladsl.{Flow, Keep, Sink, Source}
 import akka.util.Timeout
 import ch.qos.logback.classic.Logger
 import util.StreamWrapperApp2
-
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.Success
 import scala.util.control.NonFatal
@@ -24,18 +21,18 @@ import scala.util.control.NonFatal
 /**
   * Demonstration of different supervision strategies
   */
-class Kenny(completion: Promise[Done])(implicit logger:Logger) extends Actor {
+class Kenny(completion: Promise[Done])(implicit logger: Logger) extends Actor {
 
   val id: String = UUID.randomUUID().toString
 
-  override def preStart(): Unit = logger.warn(s"kenny prerestart $id")
+  override def preStart(): Unit = logger.warn(s"kenny prerestart id: $id, name : ${context.self.path}")
 
   def receive: PartialFunction[Any, Unit] = {
     case "exc" => throw new MyException("exc happened!", completion)
     case "complete" =>
-      logger.warn("complete received!")
+      logger.warn(s"complete received! name : ${context.self.path}")
       completion.complete(Success(Done))
-    case _ => logger.warn("Kenny received a message")
+    case _ => logger.warn(s"Kenny received a message name : ${context.self.path}")
   }
 }
 
@@ -64,10 +61,18 @@ class MainSup(implicit logger: Logger) extends Actor {
     }
 
   def receive: PartialFunction[Any, Unit] = {
-    case p: Props ⇒ sender() ! context.actorOf(p)
+    case actorPropsName: (Props, String) ⇒
+      context.child(actorPropsName._2) match {
+        case Some(actorRef) =>
+          logger.warn(s"already exists, retirning! ${actorRef.path}")
+          sender() ! actorRef
+        case None => sender() ! context.actorOf(actorPropsName._1, actorPropsName._2)
+      }
   }
 }
+
 object MainSup {
+
   def props()(implicit logger: Logger) = Props(new MainSup())
 }
 
@@ -95,58 +100,37 @@ object BackOffTest extends StreamWrapperApp2 {
           case _ => SupervisorStrategy.Stop
         }))
     val mainSup = as.actorOf(MainSup.props(), name = "MainSuper")
-    (mainSup ? supervisor).mapTo[ActorRef].map { ken => ken ! "exc"; ken }
-      .flatMap(ken => after(1000.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "msg";
-        ken
-      })))
-      .flatMap(ken => after(800.millis, as.scheduler, ec, Future({
-        ken ! "complete";
-        ken
-      })))
-
+    for {
+      k <- (mainSup ? (supervisor, "k1")).mapTo[ActorRef].map { ken => ken ! "exc"; ken }
+      k <- after(1000.millis, as.scheduler, ec, Future({
+        k ! "msg";
+        k
+      }))
+      k <- after(800.millis, as.scheduler, ec, Future({
+        k ! "msg";
+        k
+      }))
+      k <- after(800.millis, as.scheduler, ec, Future({
+        k ! "msg";
+        k
+      }))
+      k <- after(800.millis, as.scheduler, ec, Future({
+        k ! "msg";
+        k
+      }))
+      k <- after(800.millis, as.scheduler, ec, Future({
+        k ! "msg";
+        k
+      }))
+      k <- (mainSup ? (supervisor, "k1")).mapTo[ActorRef]
+      k <- after(800.millis, as.scheduler, ec, Future({
+        k ! "complete";
+        k
+      }))
+    } yield ()
     // unfortunatelly the stream wouldn't start (since the ken actor isn't alive) :(
     //.map(ken => StreamAfterRecovery(ken))
     completion.future
-  }
-
-  def sinkConsumer(consumer: ActorRef): Sink[Any, NotUsed] =
-    Sink.actorRefWithAck(consumer, "init", "ack", "complete", errorHandler)
-
-  val toCons: Flow[Int, String, NotUsed] = Flow[Int].map(i => "msg")
-
-  // consumer doesn't exist at the moment of stream run (omg)
-  // thus the stream doesn't run
-  def StreamAfterRecovery(consumer: ActorRef)(implicit actorMaterializer: ActorMaterializer): Unit = {
-    Source.fromIterator(() => Iterator.range(1, 9)).via(toCons)
-      .throttle(1, 800.millis, 1, ThrottleMode.Shaping)
-      .to(sinkConsumer(consumer)).run()
-  }
-
-  def errorHandler(ex: Throwable): Unit = {
-    ex match {
-      case NonFatal(e) => println("exception happened: " + e)
-    }
   }
 }
 

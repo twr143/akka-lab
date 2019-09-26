@@ -54,14 +54,14 @@ object FSDbEntry extends StreamWrapperApp2 {
         onClose(log.info("circuit breaker closed!")).
         onHalfOpen(log.info("circuit breaker half-open"))
     Await.result(db ? SetRequest("key", "value"), 2 seconds)
-    (1 to 100).toStream.foreach { _ =>
+    (1 to 100).toStream.zipWithIndex.foreach { tuple =>
       Thread.sleep(50)
-      // put timeline: 50,100,150
+      // request timeline: 50,100,150
       // exec timeline: 120,190,260
       // the third diff: 260-150>100 -> askTimeout
       breaker.withCircuitBreaker(db ? GetRequest("key"))
-        .map(x => "got it: " + x).recover {
-        case t ⇒ "error: " + t.toString
+        .map(x => s"${tuple._1} got it: " + x).recover {
+        case t ⇒ s"${tuple._1} error: " + t.toString
       }.foreach(log.info)
     }
     Future()

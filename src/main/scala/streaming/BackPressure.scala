@@ -40,7 +40,7 @@ object BackPressure extends StreamWrapperApp2 {
     // when sink is an actor, then there is no Future[Done] materialization returned
     // instead there is sink.last callback for getting to know the last element completed
     // also 'Completed' event notifies the actor about termination
-    val (((killSwitch, last), last2), NotUsed) = source.via(toCons).viaMat(KillSwitches.single)(Keep.right)
+    val (((killSwitch,last), last2), NotUsed) = source.via(toCons).viaMat(KillSwitches.single)(Keep.right)
       .alsoToMat(lastSnk)(Keep.both).alsoToMat(lastSnk2)(Keep.both)
       .toMat(sinkConsumer)(Keep.both).run()
     //          toCons/*.alsoTo(sinkConsumer2)*/.viaMat(KillSwitches.single)(Keep.right).toMat(sinkConsumer)(Keep.right).runWith(source)

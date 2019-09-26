@@ -23,9 +23,7 @@ object FMapConcatMerge extends StreamWrapperApp2 {
       """foo
          bar
          baz""",
-      """foo
-         bar
-         baz"""
+      "foo \n bar baz"
     )
     for {
       _ <- mapConcat(strings)

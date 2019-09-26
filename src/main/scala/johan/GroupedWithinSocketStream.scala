@@ -39,7 +39,7 @@ object GroupedWithinSocketStream extends StreamWrapperApp2 {
       }
         .groupedWithin(1000, 3.second)
         .mapAsync(5)(Database.asyncBulkInsert)
-        .map(written => TextMessage(s"wrote up to: ${written.last}, ${DateTimeUtils.currentODT}"))
+        .map(written => TextMessage(s"wrote ${written.size} up to: ${written.last}, ${DateTimeUtils.currentODT}"))
     val route =
       path("ws") {
         get {
